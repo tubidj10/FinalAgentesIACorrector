@@ -119,8 +119,36 @@ aparecer con el mismo nombre y un valor consistente en al menos una corrida.
 |---|---|
 | 1–3 | `corridas/` no existe, está vacía, o contiene texto plano narrado ("le pregunté al agente y respondió bien") en lugar de logs con estructura de API real (JSON con campos como `request`, `response`, `usage`/`tokens`, `timestamp`). Asignar 1 si el formato no es el esperado de una API real, sin excepción, aunque el relato sea creíble. **Esto no aplica** si lo que falta es solo la llamada al LLM y el propio repo lo documenta de forma honesta y verificable (ver nota de calibración abajo) — en ese caso evaluar por la banda 4–6, no acá. |
 | 4–5 | Existen logs con estructura de API, pero solo cubren el camino feliz, o alguna variable de `user_prompt.md` no aparece en ningún log (variable "fantasma"), o los valores no coinciden entre prompt y log. |
-| 6–8 | Todas las variables de `user_prompt.md` son trazables en `corridas/` con valores consistentes, el sistema corre sin errores, pero no hay registro de ningún caso de falla, límite o reintento — solo corridas exitosas. |
-| 9–10 | Trazabilidad completa **y** al menos una corrida documenta una falla real (timeout, error de API, alucinación, rechazo de herramienta) con cómo se manejó. |
+| 6–8 | Cumple el checklist de 6–8 (abajo) pero no el de 9–10. |
+| 9–10 | Cumple todo el checklist de 6–8 **y** todo el de 9–10. |
+
+### Checklist obligatorio — banda 6–8
+
+1. Cada variable/parámetro de `prompts/user_prompt.md` aparece, con el
+   mismo nombre, en al menos una corrida de `corridas/`. Sin variables
+   "fantasma" (declaradas y nunca usadas en ningún log).
+2. Los logs tienen estructura de API real (campos como `request`,
+   `response`, `usage`/tokens, `timestamp` o equivalente) — no prosa
+   narrada.
+3. Si algún log declara `usage`/tokens, el orden de magnitud es plausible
+   contra el texto real involucrado (Fase 0, regla 3) — un `usage`
+   implausible tumba este ítem aunque el JSON tenga la forma correcta.
+4. Al menos una corrida corresponde al camino feliz (caso exitoso, sin
+   errores).
+
+### Checklist adicional — banda 9–10 (todo lo de 6–8, más esto)
+
+5. Al menos una corrida documenta una falla real manejada (timeout, error
+   de API/herramienta, rechazo de schema, rate limit) — no alcanza con
+   "no tuvimos errores", tiene que haber evidencia de un caso límite
+   real puesto a prueba.
+6. El manejo de esa falla es visible en la propia corrida (un campo de
+   error poblado, un reintento registrado, una confianza baja disparando
+   una regla del contrato) — no solo mencionado en prosa aparte.
+
+**Formato de reporte obligatorio:** listar los ítems 1–4 (y 5–6 si aplica
+la banda 9–10) marcados cumple/no cumple con cita puntual, igual que en
+la Dimensión 3.
 
 **Ejemplo de nota alta:** `corridas/2026-08-30_run03.json` contiene
 `"request.parameters.temperature": 0.2` idéntico al declarado en
@@ -160,8 +188,31 @@ con decisiones tomadas bajo incertidumbre, no un relato de marketing.
 |---|---|
 | 1–3 | `DECISIONES.md` no existe, está vacío, o es una lista de features sin ninguna decisión ni alternativa descartada. |
 | 4–5 (**techo duro**) | El documento narra el proceso como un éxito lineal: cada paso funcionó a la primera, ninguna alternativa fue descartada, no hay ningún tropiezo real. Este techo de 5 aplica **aunque el documento esté bien escrito y sea extenso** — la ausencia de fricción real es en sí misma la señal de que no es un registro honesto de un proceso de ingeniería. |
-| 6–8 | Documenta al menos un tropiezo real (algo que no funcionó, un cambio de enfoque, una limitación descubierta tarde) y cómo se resolvió, pero sin conectar la decisión con una alternativa concreta que se descartó y por qué. |
-| 9–10 | Documenta múltiples decisiones con: la alternativa descartada, el motivo concreto (no genérico), y el tropiezo o dato que la motivó — con fecha o commit de referencia verificable en la historia del repo. |
+| 6–8 | Cumple el checklist de 6–8 pero no el de 9–10. |
+| 9–10 | Cumple todo el checklist de 6–8 **y** todo el de 9–10. |
+
+### Checklist obligatorio — banda 6–8
+
+1. Documenta al menos un tropiezo real (algo que no funcionó, un cambio
+   de enfoque, una limitación descubierta tarde), no solo features
+   implementadas.
+2. Dice cómo se resolvió ese tropiezo (la acción concreta tomada).
+
+### Checklist adicional — banda 9–10 (todo lo de 6–8, más esto)
+
+3. Hay **más de una** decisión documentada con este nivel de detalle, no
+   una sola.
+4. Cada una de esas decisiones nombra la alternativa concreta que se
+   descartó (no "evaluamos opciones", sino cuál opción puntual).
+5. Cada una da el motivo concreto del descarte (un dato, una medición, un
+   error específico) — no un motivo genérico como "no era lo mejor".
+6. Al menos una decisión es verificable contra la historia real del
+   repositorio (una fecha, un commit, un archivo que quedó como evidencia
+   de la alternativa descartada) — no solo lo que el texto afirma.
+
+**Formato de reporte obligatorio:** listar los ítems marcados cumple/no
+cumple citando, para cada decisión contada como válida, cuál alternativa
+y cuál motivo constan en `DECISIONES.md`.
 
 **Ejemplo de nota baja (techo 5):** "Diseñamos la arquitectura, la
 implementamos y funcionó perfecto desde la primera corrida." — sin
@@ -184,15 +235,57 @@ proceso sea repetible por un tercero sin adivinar nada.
 | 1 | Falta cualquiera de: `README.md`, `prompts/system_prompt.md`, `prompts/user_prompt.md`, `corridas/`, `DECISIONES.md`. Automático e innegociable, sin importar la calidad de lo que sí esté. |
 | 2–3 | Están todos los archivos/carpetas, pero el `README.md` no alcanza para reproducir la corrida (falta cómo instalar, cómo ejecutar, o con qué credenciales/variables de entorno). |
 | 4–5 | Estructura completa y README con pasos de instalación/ejecución, pero con al menos un paso ambiguo o dependiente de estado no versionado (una API key hardcodeada, una ruta absoluta de la máquina del alumno). |
-| 6–8 | Reproducible siguiendo el README al pie de la letra, variables de entorno documentadas explícitamente, sin secretos en el repo. |
-| 9–10 | Además de lo anterior: instrucciones de reproducibilidad verificadas por el propio repo (ej. un script de setup, un `requirements.txt`/`package.json` con versiones **fijadas exactas**, `==`/lockfile — no rangos mínimos `>=`) que permiten reproducir la corrida exacta de `corridas/` sin ambigüedad alguna. |
+| 6–8 | Cumple el **checklist de la banda 6–8** completo (abajo), pero no el de 9–10. |
+| 9–10 | Cumple **todo** el checklist de 6–8 y **todo** el checklist de 9–10 (abajo). Ningún ítem opcional: si falta uno solo del checklist de 9–10, el puntaje queda en 6–8, no en un punto intermedio. |
 
-> **Nota de calibración (ver `calibracion.md`):** un `requirements.txt` con
-> `>=` (versión mínima, no exacta) no alcanza para 9–10 aunque el resto sea
-> impecable — techo 8, porque una versión mínima no fija exactamente qué se
-> ejecutó. Esta aclaración se agregó después de una corrida de calibración
-> real donde el agente y el criterio humano del grupo no coincidían en este
-> punto.
+### Checklist obligatorio — banda 6–8 (todos deben cumplirse)
+
+1. El README documenta el/los comando(s) exactos de instalación de
+   dependencias (ej. `pip install -r requirements.txt`), no solo "instalar
+   las dependencias".
+2. El README documenta el/los comando(s) exactos para ejecutar una corrida,
+   con los argumentos reales que usa el script (no un pseudocódigo).
+3. Toda variable de entorno o credencial necesaria está nombrada
+   explícitamente por su nombre exacto (ej. `ANTHROPIC_API_KEY`, no
+   "configurá tu API key").
+4. No hay ningún secreto ni credencial hardcodeada en ningún archivo del
+   repositorio (ni en las 5 rutas obligatorias, ni en el código si el
+   corrector llegó a verlo en la Fase 5).
+5. No hay ninguna ruta absoluta específica de la máquina del autor
+   (`/home/nombre-de-persona/...`, `C:\Users\...`) en ningún comando
+   documentado.
+
+### Checklist adicional — banda 9–10 (todo lo de 6–8, más todo esto)
+
+6. Las dependencias tienen **versión exactamente fijada**
+   (`paquete==X.Y.Z`, un lockfile, o un digest de imagen) — un rango
+   mínimo (`paquete>=X.Y.Z`) **no cumple este ítem**, sin excepción.
+7. Existe un mecanismo de reproducción de **un solo paso** (un script, un
+   `Makefile`, un comando único) que corre la corrida completa de punta a
+   punta — si reproducirla requiere orquestar manualmente más de un
+   proceso (ej. "levantá esto en una terminal, y esto otro en otra
+   terminal") sin que el propio repo provea un wrapper que lo haga por
+   quien lo corre, este ítem **no cumple**, aunque los pasos manuales
+   estén bien documentados.
+8. Siguiendo únicamente el README/script (sin ningún paso no escrito en
+   el repo), un tercero puede llegar a un resultado equivalente al de
+   **al menos una** corrida real de `corridas/` — mismo input, mismo
+   comportamiento esperado de la herramienta.
+
+**Formato de reporte obligatorio para esta dimensión:** la
+`justificacion` tiene que listar los 8 ítems del checklist, cada uno
+marcado cumple/no cumple con la cita o el archivo que lo prueba (o la
+ausencia que lo tumba). Un puntaje sin esta lista no cumple esta rúbrica
+— "falta X" sin decir contra cuál ítem del checklist se está juzgando no
+es una justificación válida para esta dimensión.
+
+> **Nota de calibración (ver `calibracion.md`):** esta dimensión se
+> reescribió como checklist explícito después de que el formato anterior
+> (una fila de tabla con varias condiciones mezcladas en una frase) diera
+> el mismo puntaje en dos corridas distintas sin que quien recibía el
+> feedback pudiera saber, sin ambigüedad, cuál de las condiciones seguía
+> sin cumplirse — un corrector "implacable" tiene que ser implacablemente
+> claro sobre el motivo, no solo sobre el número.
 
 ---
 
@@ -210,8 +303,28 @@ contra lo que el alumno declara.
 |---|---|
 | 1–3 | No hay ningún número ni intento de cálculo, **o** el número declarado es matemáticamente irreal para la arquitectura descrita — es decir, se puede recalcular con la arquitectura que el propio repo declara (cantidad de llamadas, modelo, volumen) y el resultado difiere en órdenes de magnitud del valor declarado (ej. "arquitectura multiagente con 5 LLMs por transacción" pero proyecta menos de USD 2/año con miles de corridas diarias). Penalización automática y fuerte ante esta discrepancia verificada. |
 | 4–5 | Hay un número o estimación (aunque sea vaga o "a ojo"), el orden de magnitud es plausible para la arquitectura descrita, pero no muestra la fórmula ni los supuestos (tokens promedio por corrida, volumen esperado) — no es auditable. |
-| 6–8 | Cálculo auditable (fórmula + supuestos explícitos) y el orden de magnitud es correcto para la arquitectura declarada. |
-| 9–10 | Además: contempla el caso peor (picos de uso, reintentos, contexto creciente) y da un rango, no un único número optimista. |
+| 6–8 | Cumple el checklist de 6–8 pero no el de 9–10. |
+| 9–10 | Cumple todo el checklist de 6–8 **y** todo el de 9–10. |
+
+### Checklist obligatorio — banda 6–8
+
+1. Muestra la fórmula usada (no solo el resultado final).
+2. Declara los supuestos concretos (tokens promedio por corrida, volumen
+   esperado, precio por millón de tokens usado).
+3. El orden de magnitud del resultado es correcto para la arquitectura
+   que el propio repo declara (recalculado independientemente por el
+   corrector).
+
+### Checklist adicional — banda 9–10 (todo lo de 6–8, más esto)
+
+4. Contempla explícitamente un caso peor (picos de uso, reintentos,
+   contexto que crece) — no solo el caso promedio/optimista.
+5. Da un **rango** (mínimo–máximo), no un único número.
+6. Si la muestra de datos real es chica (pocas corridas), lo dice
+   explícitamente en vez de proyectar con falsa precisión.
+
+**Formato de reporte obligatorio:** mostrar el recálculo propio del
+corrector al lado del declarado por el repo, ítem por ítem del checklist.
 
 **Ejemplo de nota baja:** declara un pipeline de 3 llamadas a un modelo
 "frontier" con contexto de 50k tokens por corrida, uso proyectado de 10.000
@@ -248,8 +361,28 @@ correctamente el vocabulario de niveles de autonomía L0–L4:
 |---|---|
 | 1–3 | El agente tiene permisos de escritura globales, credenciales con alcance total, o ejecuta acciones L3/L4 sin ningún control humano definido. Resta puntos automáticamente, sin importar el resto del diseño. |
 | 4–5 | Los permisos están acotados, pero el documento no usa ni mapea el vocabulario L0–L4, o lo usa de forma incorrecta/decorativa (lo menciona sin que el diseño real respete esa clasificación). |
-| 6–8 | Permisos acotados al mínimo necesario, vocabulario L0–L4 aplicado correctamente a cada herramienta/acción del agente, pero sin un mecanismo concreto de aprobación humana para las acciones de mayor riesgo (queda declarado pero no implementado ni verificable en `corridas/`). |
-| 9–10 | Todo lo anterior, más evidencia en `corridas/` de que el control humano para acciones L2+ efectivamente se ejecutó al menos una vez (un log de aprobación/rechazo). |
+| 6–8 | Cumple el checklist de 6–8 pero no el de 9–10. |
+| 9–10 | Cumple todo el checklist de 6–8 **y** todo el de 9–10. |
+
+### Checklist obligatorio — banda 6–8
+
+1. Cada herramienta/acción del agente está clasificada explícitamente en
+   L0–L4 (una tabla o mapeo, no una mención suelta del vocabulario).
+2. La clasificación es correcta: ninguna acción de riesgo medio/alto
+   (L2+) está etiquetada como L0/L1, y viceversa.
+3. Los permisos reales (no solo los declarados) están acotados al mínimo
+   necesario — sin escritura global, sin credenciales de alcance total.
+
+### Checklist adicional — banda 9–10 (todo lo de 6–8, más esto)
+
+4. Existe, en `corridas/`, evidencia real (no solo declarada) de que el
+   control humano para al menos una acción L2+ se ejecutó — un campo de
+   aprobación/rechazo, un log de intervención, no solo una tabla en el
+   README que dice que "debería" pasar.
+
+**Formato de reporte obligatorio:** citar la tabla L0–L4 del repositorio y
+la corrida puntual (archivo) que prueba el ítem 4, o decir explícitamente
+que no existe.
 
 ---
 

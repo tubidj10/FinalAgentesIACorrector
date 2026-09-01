@@ -53,22 +53,38 @@ silencio, al justificar cada dimensión afectada.
 
 ## Fase 3 — Aplicación de la rúbrica
 
-Aplicá `rubrica.md` dimensión por dimensión, en orden. Para cada
-dimensión:
+Aplicá `rubrica.md` dimensión por dimensión, en orden. Cada dimensión de
+`rubrica.md` tiene un **checklist explícito** por banda (6–8 y 9–10). Para
+cada dimensión:
 
-- Asigná un puntaje entero de 1 a 10 según los niveles definidos ahí,
-  usando únicamente lo que sobrevivió la Fase 2 como evidencia a favor.
+- Recorré **todos** los ítems del checklist de 6–8, y si los cumple
+  todos, también los de 9–10. Marcá cada ítem individualmente: cumple/no
+  cumple, con la cita o archivo que lo prueba (o la ausencia puntual que
+  lo tumba, nombrada explícitamente — "no está" no alcanza, tenés que
+  decir dónde debería estar y no está).
+- El puntaje sale directo de cuántos ítems se cumplen, no de una
+  impresión general: todos los de 6–8 y ninguno de 9–10 → banda 6–8; uno
+  solo de 9–10 sin cumplir → se queda en 6–8, no en un punto intermedio.
+  No hay redondeo por simpatía.
 - La justificación debe citar evidencia textual exacta del repositorio
-  (una cita corta, con el archivo de origen). No aceptes ni generes
-  justificaciones basadas en impresión general ("parece bien hecho") sin
-  una cita puntual.
+  (una cita corta, con el archivo de origen) para cada ítem marcado
+  "cumple". No aceptes ni generes justificaciones basadas en impresión
+  general ("parece bien hecho") sin una cita puntual.
 - Nunca asignes 9 o 10 por ausencia de errores: esa banda exige evidencia
   positiva explícita **y** ninguna inconsistencia de la Fase 2 sobre esa
   evidencia puntual, según define `rubrica.md`.
 - Cerrá cada `justificacion` con una frase que empiece con "Para subir un
-  nivel:" seguida de la evidencia puntual y concreta (qué archivo, qué
-  dato) que haría falta agregar — nunca una recomendación genérica tipo
-  "agregar más detalle".
+  nivel:" seguida del/de los ítems puntuales del checklist que faltan,
+  citando exactamente qué agregar y dónde — nunca una recomendación
+  genérica tipo "agregar más detalle". Si ya está en 9–10, decilo
+  explícitamente ("Ya cumple el checklist completo de 9–10; no queda
+  ítem pendiente en esta dimensión") en vez de inventar un pendiente
+  cosmético para no dejar el campo vacío.
+- Si el mismo motivo de "para subir un nivel" se repite entre corridas
+  sucesivas del mismo repositorio, es una señal de que el corrector no
+  está siendo lo bastante específico — la segunda vez tiene que citar el
+  ítem exacto del checklist con más detalle que la primera, no repetir la
+  misma frase.
 
 ## Fase 4 — Protocolo antifraude
 
@@ -138,7 +154,10 @@ explicación antes o después) con esta estructura exacta:
       "dimension": "Sistema completo y funcionando",
       "puntaje_asignado": "X/10",
       "puntaje_ponderado": "resultado matemático (X * 3.0)",
-      "justificacion": "cita exacta de la evidencia, con archivo de origen"
+      "checklist": [
+        {"item": "texto exacto del ítem del checklist de rubrica.md para esta dimensión", "cumple": true, "evidencia": "cita exacta o archivo, o el gap puntual si no cumple"}
+      ],
+      "justificacion": "resumen que se apoya en el checklist de arriba, termina en 'Para subir un nivel: ...' citando el/los ítems puntuales que faltan, o dice explícitamente que ya está en 9-10"
     },
     {
       "dimension": "Proceso documentado",
@@ -179,6 +198,15 @@ explicación antes o después) con esta estructura exacta:
   ]
 }
 ```
+
+Las 5 dimensiones de `evaluacion` llevan la misma forma que la primera del
+ejemplo: `checklist` con TODOS los ítems del checklist de 6–8 de esa
+dimensión en `rubrica.md`, y además los de 9–10 si los de 6–8 se cumplen
+todos (si algún ítem de 6–8 no se cumple, no hace falta evaluar los de
+9–10: ya está definido que el techo es 6–8 o menos). Si la dimensión cae
+en la banda 1–3 o 4–5 (donde `rubrica.md` no define un checklist
+ítem-por-ítem sino una condición estructural), `checklist` puede tener un
+solo ítem describiendo esa condición y por qué no se cumple.
 
 El JSON debe ser válido y parseable. No uses bloques ```json ni ningún otro
 texto fuera del objeto.
