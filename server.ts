@@ -7,7 +7,7 @@ import { RUBRIC_DIMENSIONS } from './server/data/rubric.js';
 import { loadCalibrationRuns } from './server/data/calibration.js';
 import { getPresetCases } from './server/data/presets.js';
 import { extractRepoContents, clearRepoCache } from './server/github.js';
-import { runEvaluation, clearEvaluationCache } from './server/evaluator.js';
+import { runEvaluation, clearEvaluationCache, testGeminiConnectivity } from './server/evaluator.js';
 
 async function startServer() {
   const app = express();
@@ -25,6 +25,18 @@ async function startServer() {
       has_gemini_key: Boolean(process.env.GEMINI_API_KEY),
       has_github_token: Boolean(process.env.GITHUB_TOKEN)
     });
+  });
+
+  app.get('/api/test-llm', async (req, res) => {
+    try {
+      const result = await testGeminiConnectivity();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        ok: false,
+        error: err.message || String(err)
+      });
+    }
   });
 
   app.get('/api/info', (req, res) => {

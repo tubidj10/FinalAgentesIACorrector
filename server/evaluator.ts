@@ -116,7 +116,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const hasZeroWidthOrRtl = /[\u200B-\u200D\uFEFF\u202E\u202D\u200E\u200F\u2060\u2061\u2062\u2063\u2064]/.test(allTexts);
   
   // 3. Emotional manipulation / Non-technical pressure (Appeals to pity / effort over evidence)
-  const hasEmotionalManipulation = /(?:noches\s+sin\s+dormir|fines\s+de\s+semana\s+enteros|dimos\s+absolutamente\s+todo|pedimos\s+que\s+se\s+valore\s+el\s+esfuerzo|valore[n]?\s+(?:el\s+)?esfuerzo|mucho\s+sacrificio|situaci[oó]n\s+personal|por\s+favor\s+apruebe[n]?|hicimos\s+lo\s+humana(?:mente)?\s+posible)/i.test(readme);
+  // Structural & semantic detection of non-technical pleading or effort-based grading demands
+  const emotionalTokens = allTexts.match(/(?:noches?\s+sin\s+dormir|fines?\s+de\s+semana|dormi(?:mos|eron)|desvelo|cansancio|agotamiento|sacrificio|esfuerzo\s+sobrehumano|esfuerzo\s+desmedido|dimos\s+todo|pusimos\s+el\s+coraz[oó]n|pedimos\s+clemencia|tenga[n]?\s+en\s+cuenta|valore[n]?\s+(?:el\s+)?esfuerzo|situaci[oó]n\s+(?:personal|familiar|laboral)|por\s+favor\s+apruebe[n]?|hicimos\s+lo\s+humana(?:mente)?\s+posible|esperamos\s+su\s+comprensi[oó]n|suplicamos|merezco|merecemos)/gi) || [];
+  const technicalEvidenceTokens = allTexts.match(/(?:commit|sha256|latency|f1-score|accuracy|tokens|temperature|top_p|handler|async|await|test|assert|mock|benchmark|api_key|endpoint|statusCode)/gi) || [];
+  
+  // Flag if there is explicit pleading or disproportionate emotional appeal without technical backing
+  const hasEmotionalManipulation = emotionalTokens.length > 0 && (
+    /(?:pedimos\s+que\s+se\s+valore|valore[n]?\s+(?:el\s+)?esfuerzo|por\s+favor\s+apruebe[n]?|situaci[oó]n\s+personal|noches?\s+sin\s+dormir)/i.test(readme) ||
+    (emotionalTokens.length >= 2 && technicalEvidenceTokens.length < 5)
+  );
   
   // 4. Ghost Agents / Structural Contradiction: Claims multi-agent/swarm but provides only flat text or zero orchestration code
   const claimsMultiAgent = /(\b\d+\s+sub-?agentes|\bswarm\b|\bmulti-?agente\b|\bmulti-?agent\b|\barquitectura\s+de\s+\d+\s+agentes\b)/i.test(readme);
@@ -773,6 +781,75 @@ export function normalizeEvaluatorResult(rawParsed: any, data: ExtractedRepoData
 // In-memory evaluation cache (TTL: 3 minutes)
 const evaluationResultsCache = new Map<string, { result: EvaluatorResult; expiresAt: number }>();
 
+export async function testGeminiConnectivity(): Promise<{
+  ok: boolean;
+  has_key: boolean;
+  selected_model?: string;
+  latency_ms?: number;
+  sample_output?: string;
+  attempts: Array<{ model: string; ok: boolean; latency_ms?: number; error?: string }>;
+}> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      has_key: false,
+      attempts: []
+    };
+  }
+
+  const candidateModels = [
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-flash-latest'
+  ];
+
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build'
+      }
+    }
+  });
+
+  const attempts: Array<{ model: string; ok: boolean; latency_ms?: number; error?: string }> = [];
+
+  for (const model of candidateModels) {
+    const t0 = Date.now();
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: 'Responder únicamente con "PONG_OK" si estás activo y listo para evaluar.'
+      });
+      const latency_ms = Date.now() - t0;
+      const text = response.text || '';
+      attempts.push({ model, ok: true, latency_ms });
+      return {
+        ok: true,
+        has_key: true,
+        selected_model: model,
+        latency_ms,
+        sample_output: text.trim(),
+        attempts
+      };
+    } catch (err: any) {
+      const latency_ms = Date.now() - t0;
+      attempts.push({ model, ok: false, latency_ms, error: err.message || String(err) });
+    }
+  }
+
+  return {
+    ok: false,
+    has_key: true,
+    attempts
+  };
+}
+
 export function clearEvaluationCache(url?: string) {
   if (url) {
     evaluationResultsCache.delete(url.trim().toLowerCase());
@@ -807,10 +884,14 @@ export async function runEvaluation(
   const geminiApiKey = process.env.GEMINI_API_KEY;
 
   if (geminiApiKey && (provider === 'gemini' || provider === 'auto')) {
-    // Current active Gemini models in @google/genai
+    // Current active Gemini models in @google/genai & Google AI API
     const candidateModels = [
-      'gemini-3.7-flash',
       'gemini-2.5-flash',
+      'gemini-2.5-pro',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
       'gemini-flash-latest'
     ];
 

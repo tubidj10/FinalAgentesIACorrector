@@ -86,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
           <div className="flex items-center space-x-3 text-xs">
             <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300">
               <span className={`w-2 h-2 rounded-full ${hasGeminiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>{hasGeminiKey ? 'Gemini 2.5 Flash' : 'Motor Calibrado'}</span>
+              <span>{hasGeminiKey ? 'Gemini Flash Activo' : 'Motor Calibrado'}</span>
             </div>
 
             {/* Team Credits Button */}
