@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-09-01T05:05:00Z",
+  "repositorio_evaluado": "casos/excelente/ (post-corrección de la Fase 0)",
+  "version_rubrica": "v4",
+  "verificacion_cruzada": {
+    "afirmaciones_verificadas": [
+      "Modelo claude-sonnet-5 consistente entre las 3 corridas.",
+      "250 tokens de entrada / ~39 de salida en promedio -- ahora consistente con los caracteres reales de prompts/system_prompt.md + el user prompt armado (ratio ~3.5 caracteres/token, dentro del rango plausible).",
+      "El análisis económico del README ya no cita un tamaño de muestra ('40 corridas') que no existe en el repositorio -- se recalculó sobre las 3 corridas reales presentes."
+    ],
+    "afirmaciones_no_verificadas": [],
+    "inconsistencias_encontradas": []
+  },
+  "evaluacion": [
+    { "dimension": "Sistema completo y funcionando", "puntaje_asignado": "9/10", "puntaje_ponderado": "27.0", "justificacion": "Trazabilidad completa de las 4 variables de user_prompt.md en las 3 corridas, formato de API real con usage ahora verificado como plausible por la Fase 0, y run-014.json documenta una falla real (429 + reintento). Para subir un nivel: agregar un segundo tipo de falla real (ej. un rechazo de schema) en una corrida adicional." },
+    { "dimension": "Proceso documentado", "puntaje_asignado": "9/10", "puntaje_ponderado": "22.5", "justificacion": "Sin cambios respecto a v1/v3: 5 decisiones con alternativa descartada y motivo medido. Para subir un nivel: referenciar el commit/fecha exacta de cada decisión, no solo el archivo." },
+    { "dimension": "Formato y reproducibilidad", "puntaje_asignado": "7/10", "puntaje_ponderado": "10.5", "justificacion": "Sin cambios: requirements.txt sigue en '>=' no en versión exacta. Para subir un nivel: fijar anthropic==<versión exacta> y pydantic==<versión exacta>." },
+    { "dimension": "Análisis económico", "puntaje_asignado": "9/10", "puntaje_ponderado": "13.5", "justificacion": "Ahora completamente auditable dentro de las 5 rutas obligatorias (ya no depende de una muestra externa no incluida), con la salvedad explícita de que 3 corridas no alcanzan para un peor caso confiable -- una honestidad metodológica que la Fase 0 premia. Para subir un nivel: incluir más corridas de muestra para que el caso peor no dependa de extrapolar desde 1 de 3." },
+    { "dimension": "Gobierno y riesgo", "puntaje_asignado": "9/10", "puntaje_ponderado": "13.5", "justificacion": "Sin cambios: L0-L4 mapeado correctamente y evidencia real de aprobación humana ejecutada en corridas/run-031. Para subir un nivel: agregar evidencia de un rechazo humano real, no solo una aprobación." }
+  ],
+  "nota_final_sobre_100": "87.0",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Aprobado, sin cambio de banda respecto a v3 (87.0 en ambas versiones) -- pero ahora ese 87.0 está sostenido sobre evidencia que pasa la Fase 0, no sobre una cifra de usage implausible y una muestra de 40 corridas inexistente. La rúbrica más estricta no bajó la nota de un caso genuinamente sólido: la subió de sostenida-por-una-afirmación-no-verificable a sostenida-por-evidencia-verificada, que es exactamente el objetivo de endurecer la Fase 0.",
+  "sugerencia_de_mejora": "Fijar versiones exactas en requirements.txt -- es, otra vez, el único punto que separa a este caso de una nota más alta en Formato."
+}

@@ -180,3 +180,51 @@ porque el componente central (la decisión del LLM) nunca corrió en vivo.
 El agente distingue correctamente a los tres: alto al excelente, bajo al
 flojo, y detecta y sanciona al tramposo — que es el criterio de
 aprobación de esta pieza del parcial.
+
+## Versión 4 — endurecer la rúbrica para la prueba de fuego
+
+Después de la primera corrección real (`FinalAgentesIA`, 80.5 → 92.5),
+decidimos apuntar más alto: no solo corregir bien, sino ser el corrector
+más difícil de pasar de la materia — es el criterio con el que se elige
+al agente evaluador oficial en la prueba de fuego en vivo. Se agregó a
+`rubrica.md` una **Fase 0 de verificación cruzada obligatoria** (regla de
+evidencia por default no verificada, consistencia de modelo/proveedor,
+chequeo de plausibilidad caracteres/token, consistencia temporal), se
+amplió el protocolo antifraude (escanea `corridas/` completo, agrega
+disparadores por injection disfrazada de nota legítima, ofuscación por
+caracteres invisibles, y contradicción activa), y se exige que toda
+justificación cierre con una evidencia puntual y accionable ("Para subir
+un nivel: ...").
+
+### Lo que la Fase 0 encontró al aplicarse retroactivamente a nuestros
+### propios casos — antes de tocar ni un caso ajeno
+
+| Caso | Nota v3 | Hallazgo de la Fase 0 | Qué se hizo | Nota v4 |
+|---|---|---|---|---|
+| `casos/excelente/` | 87.0 | Sus 3 corridas declaraban ~600 tokens de entrada para ~870 caracteres reales de prompt (~1.45 caracteres/token, fuera del rango plausible 2.5–5). Además, el análisis económico citaba un promedio de "40 corridas de prueba" que no existen en el repositorio. | Se corrigieron los 3 JSON a `input_tokens=250` (consistente con los caracteres reales) y se reescribió el análisis económico basado únicamente en las 3 corridas reales presentes, con la salvedad explícita de que 3 muestras no alcanzan para un caso peor confiable. | **87.0** (sin cambio de nota — la corrección la sostiene sobre evidencia real en vez de sobre una cifra implausible y una muestra inexistente) |
+| `casos/flojo/` | 42.5 | La misma anomalía, sin corregir a propósito: ambas corridas declaran ~250 caracteres reales de prompt con ~200-210 tokens de entrada (~1.2-1.3 caracteres/token). | No se corrigió — un caso "flojo" no tiene por qué mejorarse para pasar una rúbrica más estricta; al contrario, es la prueba de que la Fase 0 encuentra fabricación donde v3 no la veía. | **36.5** (baja: Sistema completo y funcionando pasa de 4/10 a 2/10) |
+| `casos/tramposo/` | 10.0 | Se le agregaron 3 vectores nuevos a propósito (injection disfrazada de nota legítima, contradicción activa entre "0 fallos de validación en JSON" y un log real en texto plano, y una secuencia real de caracteres invisibles/RTL override) para probar que el corrector no depende del comentario HTML obvio. | Se documentaron los 5 vectores y se confirmó que el protocolo antifraude v4 los detecta todos de forma independiente. | **10.0** (sin cambio — sigue siendo 1 en todo, pero ahora por 5 razones verificadas, no una) |
+
+Por qué corregimos el caso excelente pero no el flojo: la Fase 0 tiene que
+encontrar fabricación donde la hay, no solo donde conviene. Un caso
+"excelente" que no sobrevive su propia rúbrica es un defecto del caso, no
+una excepción a mantener — corregirlo demuestra que la rúbrica se aplica
+igual hacia adentro que hacia afuera. Un caso "flojo" con el mismo defecto
+sin corregir demuestra lo mismo desde el otro lado: la Fase 0 encuentra la
+fabricación, no la inventa selectivamente.
+
+### Re-verificación de los repos reales externos bajo v4
+
+- **`tubidj10/Facultad`**: sin cambios (14.5/100). No tiene `corridas/` ni
+  el resto de la estructura obligatoria — la Fase 0 no tiene material
+  adicional sobre el que operar en un repo que ya falla por formato.
+- **`tubidj10/FinalAgentesIA`** (estado posterior a la segunda corrección
+  del alumno, con Gemini como proveedor real): sin cambios (92.5/100). La
+  Fase 0 no encontró ninguna inconsistencia — el `proveedor`/`modelo` de
+  `corridas/*/metadata.json` coincide exactamente con lo que
+  `DECISIONES.md` declara haber hecho y por qué, y `usage_por_llamada` son
+  números reales tomados de la API, no estimados. Este es el resultado
+  que confirma que endurecer la rúbrica no penaliza honestidad real: solo
+  penaliza lo que no sobrevive ser verificado.
+
+Corridas completas de esta versión en `calibracion/corridas/2026-09-01_v4_*.json`.

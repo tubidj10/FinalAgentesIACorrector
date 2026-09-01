@@ -74,6 +74,23 @@ real de construcción, visible en la historia de commits de esta rama:
    errores de aplicación), y se corrigió `rubrica.md` en consecuencia —
    ver el detalle completo, incluyendo los desacuerdos que **no**
    generaron ningún cambio, en `calibracion.md`.
+5. **Rúbrica v4** — después de corregir un repo real dos veces
+   (`tubidj10/FinalAgentesIA`, 80.5 → 92.5), decidimos apuntar a ser el
+   corrector más difícil de pasar de la materia, no solo uno que corrige
+   bien: es el criterio de la prueba de fuego en vivo. Se agregó una
+   **Fase 0 de verificación cruzada obligatoria** a `rubrica.md`
+   (evidencia no verificada por default, consistencia de
+   modelo/proveedor, chequeo de plausibilidad caracteres/token para
+   detectar `usage` fabricado, contradicción activa entre lo que un repo
+   afirma y lo que su propia evidencia muestra) y se endureció el
+   protocolo antifraude (injection disfrazada de nota legítima,
+   ofuscación por caracteres invisibles/homóglifos, no solo el comentario
+   HTML obvio). Al aplicarla retroactivamente a nuestros propios casos
+   **antes** de tocar un repo ajeno, encontró que `casos/excelente/`
+   declaraba un `usage` implausible — se corrigió el caso; `casos/flojo/`
+   tenía el mismo defecto — se dejó sin corregir a propósito, y su nota
+   bajó de 42.5 a 36.5. Detalle completo en `calibracion.md`, sección
+   "Versión 4".
 
 La historia de commits de esta rama (`claude/evaluador-trabajos-ia-vdvp8m`)
 refleja ese orden real, incluyendo el ajuste de rúbrica hecho *después*
