@@ -1,5 +1,7 @@
 {
   "timestamp": "2026-09-01T08:00:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIACorrector (auto-evaluación, contra su propia rúbrica v5)",
   "version_rubrica": "v5",
   "nota_metodologica": "Este repo no tiene la estructura del trabajo final (fue construido para el parcial 'El agente evaluador'). Se reporta el puntaje literal (Formato=1 automático por rutas faltantes, igual que Facultad/2daClaseAgentesIA) Y un puntaje por mapeo de equivalentes (prompts/system_prompt.md~agente/system_prompt.md, prompts/user_prompt.md~agente/user_prompt_template.md, corridas/~calibracion/corridas/, DECISIONES.md~calibracion.md), para que el ejercicio sea sustantivo y no solo un tecnicismo. Sesgo declarado: quien escribe esto es el mismo agente que construyó el repositorio evaluado -- se compensó siendo deliberadamente más estricto que con terceros, no más generoso.",
@@ -7,10 +9,26 @@
     {
       "dimension": "Sistema completo y funcionando",
       "checklist": [
-        {"item": "Cada variable de 'user_prompt' aparece en al menos una corrida", "cumple": false, "evidencia": "agente/user_prompt_template.md declara {REPO_URL}, {README}, {PROMPTS_SYSTEM_PROMPT}, {PROMPTS_USER_PROMPT}, {DECISIONES}, {LISTADO_CORRIDAS}, {CONTENIDO_DE_CADA_CORRIDA}. Ninguna calibracion/corridas/*.json las registra como campos -- van directo al resultado del análisis. Variable fantasma, el mismo patrón que casos/flojo/ (construido por este mismo agente) fue penalizado por tener."},
-        {"item": "Logs con estructura de API real", "cumple": false, "evidencia": "calibracion/corridas/*.json es un esquema propio (evaluacion, checklist, reporte_auditoria) -- no tiene msg id, stop_reason ni usage/tokens de una llamada real al modelo que generó la evaluación."},
-        {"item": "Usage/tokens plausibles", "cumple": false, "evidencia": "no aplica: nunca se declaró usage en ninguna corrida propia."},
-        {"item": "Al menos una corrida de camino feliz", "cumple": true, "evidencia": "múltiples corridas exitosas contra Facultad, FinalAgentesIA, casos/*"}
+        {
+          "item": "Cada variable de 'user_prompt' aparece en al menos una corrida",
+          "cumple": false,
+          "evidencia": "agente/user_prompt_template.md declara {REPO_URL}, {README}, {PROMPTS_SYSTEM_PROMPT}, {PROMPTS_USER_PROMPT}, {DECISIONES}, {LISTADO_CORRIDAS}, {CONTENIDO_DE_CADA_CORRIDA}. Ninguna calibracion/corridas/*.json las registra como campos -- van directo al resultado del análisis. Variable fantasma, el mismo patrón que casos/flojo/ (construido por este mismo agente) fue penalizado por tener."
+        },
+        {
+          "item": "Logs con estructura de API real",
+          "cumple": false,
+          "evidencia": "calibracion/corridas/*.json es un esquema propio (evaluacion, checklist, reporte_auditoria) -- no tiene msg id, stop_reason ni usage/tokens de una llamada real al modelo que generó la evaluación."
+        },
+        {
+          "item": "Usage/tokens plausibles",
+          "cumple": false,
+          "evidencia": "no aplica: nunca se declaró usage en ninguna corrida propia."
+        },
+        {
+          "item": "Al menos una corrida de camino feliz",
+          "cumple": true,
+          "evidencia": "múltiples corridas exitosas contra Facultad, FinalAgentesIA, casos/*"
+        }
       ],
       "puntaje_asignado": "3/10",
       "puntaje_ponderado": "9.0",
@@ -19,12 +37,36 @@
     {
       "dimension": "Proceso documentado",
       "checklist": [
-        {"item": "Al menos un tropiezo real documentado", "cumple": true, "evidencia": "calibracion.md documenta, entre otros, el hallazgo de que casos/excelente/ no pasaba su propia Fase 0"},
-        {"item": "Dice cómo se resolvió", "cumple": true, "evidencia": "corrección del usage implausible + reescritura del análisis económico sobre datos reales"},
-        {"item": "Más de una decisión con este detalle", "cumple": true, "evidencia": "5 versiones de rúbrica (v1-v5), cada una con su corrida de calibración"},
-        {"item": "Cada una nombra la alternativa descartada", "cumple": true, "evidencia": "ej. banda 1-3 vs 4-6 en Sistema, exacto vs mínimo en Formato"},
-        {"item": "Motivo concreto", "cumple": true, "evidencia": "cada nota de calibración cita el caso real que expuso la ambigüedad"},
-        {"item": "Verificable contra la historia real del repo", "cumple": true, "evidencia": "cada corrección de rúbrica tiene su propio commit con el antes/después documentado en el mensaje"}
+        {
+          "item": "Al menos un tropiezo real documentado",
+          "cumple": true,
+          "evidencia": "calibracion.md documenta, entre otros, el hallazgo de que casos/excelente/ no pasaba su propia Fase 0"
+        },
+        {
+          "item": "Dice cómo se resolvió",
+          "cumple": true,
+          "evidencia": "corrección del usage implausible + reescritura del análisis económico sobre datos reales"
+        },
+        {
+          "item": "Más de una decisión con este detalle",
+          "cumple": true,
+          "evidencia": "5 versiones de rúbrica (v1-v5), cada una con su corrida de calibración"
+        },
+        {
+          "item": "Cada una nombra la alternativa descartada",
+          "cumple": true,
+          "evidencia": "ej. banda 1-3 vs 4-6 en Sistema, exacto vs mínimo en Formato"
+        },
+        {
+          "item": "Motivo concreto",
+          "cumple": true,
+          "evidencia": "cada nota de calibración cita el caso real que expuso la ambigüedad"
+        },
+        {
+          "item": "Verificable contra la historia real del repo",
+          "cumple": true,
+          "evidencia": "cada corrección de rúbrica tiene su propio commit con el antes/después documentado en el mensaje"
+        }
       ],
       "puntaje_asignado": "10/10",
       "puntaje_ponderado": "25.0",
@@ -34,13 +76,41 @@
       "dimension": "Formato y reproducibilidad",
       "puntaje_literal": "1/10 (automático: no existen prompts/system_prompt.md, prompts/user_prompt.md, corridas/ ni DECISIONES.md en la raíz -- misma regla aplicada a Facultad y 2daClaseAgentesIA)",
       "checklist_por_mapeo": [
-        {"item": "Instalación documentada", "cumple": true, "evidencia": "agente/requirements.txt + 'pip install -r requirements.txt'"},
-        {"item": "Ejecución documentada", "cumple": true, "evidencia": "comando exacto en README.md y agente/modo_chat.md"},
-        {"item": "Variables de entorno nombradas", "cumple": true, "evidencia": "ANTHROPIC_API_KEY, GITHUB_TOKEN nombradas por su nombre exacto"},
-        {"item": "Sin secretos hardcodeados", "cumple": true, "evidencia": "verificado, ninguna key literal en el repo"},
-        {"item": "Sin rutas absolutas de una máquina", "cumple": true, "evidencia": "ninguna encontrada"},
-        {"item": "[9-10] Versión exactamente fijada", "cumple": false, "evidencia": "agente/requirements.txt: 'anthropic>=0.40.0' -- EL MISMO DEFECTO EXACTO que se le marcó a casos/excelente/, a casos/flojo/, y a FinalAgentesIA en su primera corrida."},
-        {"item": "[9-10] Mecanismo de reproducción de un solo paso", "cumple": false, "evidencia": "no existe un correr_corrida.sh equivalente para agente/ejecutar_evaluacion.py -- FinalAgentesIA sí lo agregó para el suyo después de que se lo marcáramos."}
+        {
+          "item": "Instalación documentada",
+          "cumple": true,
+          "evidencia": "agente/requirements.txt + 'pip install -r requirements.txt'"
+        },
+        {
+          "item": "Ejecución documentada",
+          "cumple": true,
+          "evidencia": "comando exacto en README.md y agente/modo_chat.md"
+        },
+        {
+          "item": "Variables de entorno nombradas",
+          "cumple": true,
+          "evidencia": "ANTHROPIC_API_KEY, GITHUB_TOKEN nombradas por su nombre exacto"
+        },
+        {
+          "item": "Sin secretos hardcodeados",
+          "cumple": true,
+          "evidencia": "verificado, ninguna key literal en el repo"
+        },
+        {
+          "item": "Sin rutas absolutas de una máquina",
+          "cumple": true,
+          "evidencia": "ninguna encontrada"
+        },
+        {
+          "item": "[9-10] Versión exactamente fijada",
+          "cumple": false,
+          "evidencia": "agente/requirements.txt: 'anthropic>=0.40.0' -- EL MISMO DEFECTO EXACTO que se le marcó a casos/excelente/, a casos/flojo/, y a FinalAgentesIA en su primera corrida."
+        },
+        {
+          "item": "[9-10] Mecanismo de reproducción de un solo paso",
+          "cumple": false,
+          "evidencia": "no existe un correr_corrida.sh equivalente para agente/ejecutar_evaluacion.py -- FinalAgentesIA sí lo agregó para el suyo después de que se lo marcáramos."
+        }
       ],
       "puntaje_asignado_por_mapeo": "7/10",
       "puntaje_ponderado_usado_en_la_nota": "1/10 (se usa el literal, no el mapeo, para la nota final -- el mapeo es solo para que el feedback sea útil)",
@@ -50,9 +120,21 @@
     {
       "dimension": "Análisis económico",
       "checklist": [
-        {"item": "Muestra la fórmula", "cumple": false, "evidencia": "no existe ningún cálculo del costo de operar el corrector mismo"},
-        {"item": "Declara los supuestos", "cumple": false, "evidencia": "no aplica, no hay cálculo"},
-        {"item": "Orden de magnitud correcto", "cumple": false, "evidencia": "no hay número que evaluar"}
+        {
+          "item": "Muestra la fórmula",
+          "cumple": false,
+          "evidencia": "no existe ningún cálculo del costo de operar el corrector mismo"
+        },
+        {
+          "item": "Declara los supuestos",
+          "cumple": false,
+          "evidencia": "no aplica, no hay cálculo"
+        },
+        {
+          "item": "Orden de magnitud correcto",
+          "cumple": false,
+          "evidencia": "no hay número que evaluar"
+        }
       ],
       "puntaje_asignado": "1/10",
       "puntaje_ponderado": "1.5",
@@ -61,10 +143,26 @@
     {
       "dimension": "Gobierno y riesgo",
       "checklist": [
-        {"item": "Cada herramienta/acción clasificada explícitamente L0-L4", "cumple": true, "evidencia": "agente/herramientas.md, tabla completa"},
-        {"item": "Clasificación correcta", "cumple": true, "evidencia": "lectura=L1, publicar nota oficial=L2 explícitamente fuera del alcance del agente"},
-        {"item": "Permisos reales acotados al mínimo", "cumple": true, "evidencia": "solo lectura de 5 rutas + código opcional (Fase 5); nunca escritura sobre el repo evaluado -- verificado en la práctica: nunca se escribió en Facultad, FinalAgentesIA ni 2daClaseAgentesIA durante toda esta sesión"},
-        {"item": "[9-10] Evidencia real de que el control humano para una acción L2+ se ejecutó", "cumple": false, "evidencia": "no hay ninguna corrida donde una nota generada por el corrector haya sido efectivamente aprobada o rechazada por un humano antes de publicarse -- el mecanismo está declarado (herramientas.md) pero nunca ejercitado con evidencia."}
+        {
+          "item": "Cada herramienta/acción clasificada explícitamente L0-L4",
+          "cumple": true,
+          "evidencia": "agente/herramientas.md, tabla completa"
+        },
+        {
+          "item": "Clasificación correcta",
+          "cumple": true,
+          "evidencia": "lectura=L1, publicar nota oficial=L2 explícitamente fuera del alcance del agente"
+        },
+        {
+          "item": "Permisos reales acotados al mínimo",
+          "cumple": true,
+          "evidencia": "solo lectura de 5 rutas + código opcional (Fase 5); nunca escritura sobre el repo evaluado -- verificado en la práctica: nunca se escribió en Facultad, FinalAgentesIA ni 2daClaseAgentesIA durante toda esta sesión"
+        },
+        {
+          "item": "[9-10] Evidencia real de que el control humano para una acción L2+ se ejecutó",
+          "cumple": false,
+          "evidencia": "no hay ninguna corrida donde una nota generada por el corrector haya sido efectivamente aprobada o rechazada por un humano antes de publicarse -- el mecanismo está declarado (herramientas.md) pero nunca ejercitado con evidencia."
+        }
       ],
       "puntaje_asignado": "8/10",
       "puntaje_ponderado": "12.0",

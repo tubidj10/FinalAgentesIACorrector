@@ -1,9 +1,15 @@
 {
   "timestamp": "2026-08-29T16:40:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "https://github.com/tubidj10/Facultad",
   "nota_metodologica": "Repo real y externo (no construido para este parcial, entrega de una materia previa con otra consigna). Se usa para validar que el corrector corre sobre un repositorio real de GitHub y aplica la regla de estructura obligatoria sin excepciones, incluso ante una entrega genuina y honesta que simplemente no sigue el formato de esta rúbrica.",
   "extraccion_real_via_github_api": {
-    "raiz_del_repo": [".gitattributes", "README.md", "english-quest-entrega/"],
+    "raiz_del_repo": [
+      ".gitattributes",
+      "README.md",
+      "english-quest-entrega/"
+    ],
     "README.md_sha": "c0acbf1838ff7c8d565c9137d850695954c4a771",
     "prompts/system_prompt.md": "NO ENCONTRADO",
     "prompts/user_prompt.md": "NO ENCONTRADO",

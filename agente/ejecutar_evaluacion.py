@@ -2,10 +2,17 @@
 """Corre el agente evaluador sobre un repositorio real y escribe el log
 transaccional de la corrida en un JSON con el formato de una API real.
 
-Uso:
-    ANTHROPIC_API_KEY=sk-... python3 ejecutar_evaluacion.py <url-del-repo> <carpeta-de-salida-corridas>
+Soporta dos proveedores de LLM (mismo motivo que FinalAgentesIA, iteración
+5 de su DECISIONES.md: una cuenta de Anthropic puede tener la creación de
+API keys bloqueada por política organizacional; Gemini es una alternativa
+real y accesible con una cuenta personal):
 
-Requiere: pip install anthropic requests
+Uso:
+    ANTHROPIC_API_KEY=sk-... python3 ejecutar_evaluacion.py <url-del-repo> <carpeta-de-salida-corridas> --proveedor anthropic
+    GEMINI_API_KEY=...      python3 ejecutar_evaluacion.py <url-del-repo> <carpeta-de-salida-corridas> --proveedor gemini
+
+Requiere: pip install -r requirements.txt (solo para el proveedor anthropic;
+gemini usa urllib, sin SDK, igual que FinalAgentesIA).
 Opcional: GITHUB_TOKEN (solo lectura pública, sube el rate limit de 60 a
 5000 req/hora; el corrector nunca necesita permisos de escritura).
 """
@@ -16,6 +23,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +34,9 @@ RUTAS_OBLIGATORIAS = [
     "prompts/user_prompt.md",
     "DECISIONES.md",
 ]
+
+GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 # Fase 5 (revisión de código, no puntuada): extensiones que vale la pena
 # traer, y límites para no inflar el prompt con un repo entero.
@@ -188,11 +199,79 @@ def sha256_de(texto: str) -> str:
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()
 
 
+def _llamar_anthropic(system_prompt: str, user_prompt: str, api_key: str) -> dict:
+    from anthropic import Anthropic  # import diferido: solo hace falta con este proveedor
+
+    cliente = Anthropic(api_key=api_key)
+    respuesta = cliente.messages.create(
+        model=MODELO,
+        max_tokens=2000,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+    texto = "".join(b.text for b in respuesta.content if b.type == "text")
+    return {
+        "proveedor": "anthropic",
+        "modelo": MODELO,
+        "texto_respuesta": texto,
+        "usage": {
+            "input_tokens": respuesta.usage.input_tokens,
+            "output_tokens": respuesta.usage.output_tokens,
+        },
+    }
+
+
+def _llamar_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
+    """Sin SDK (urllib), mismo patrón validado en FinalAgentesIA: la key va
+    en el header x-goog-api-key, no en la URL (ver revisión de código de
+    ese repo, Fase 5, hallazgo 1 -- aplicamos la misma corrección acá desde
+    el principio en vez de repetir el hallazgo)."""
+    url = f"{GEMINI_API_BASE}/models/{GEMINI_MODEL}:generateContent"
+    body = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json"},
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            resultado = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Gemini API error {e.code}: {e.read().decode('utf-8', errors='replace')}") from None
+
+    candidato = resultado["candidates"][0]
+    partes_texto = [p["text"] for p in candidato["content"]["parts"] if "text" in p]
+    if not partes_texto:
+        raise RuntimeError(f"Gemini no devolvió texto (finishReason={candidato.get('finishReason')})")
+    usage = resultado.get("usageMetadata", {})
+    return {
+        "proveedor": "gemini",
+        "modelo": GEMINI_MODEL,
+        "texto_respuesta": "".join(partes_texto).strip(),
+        "usage": {
+            "input_tokens": usage.get("promptTokenCount"),
+            "output_tokens": usage.get("candidatesTokenCount"),
+            "thoughts_tokens": usage.get("thoughtsTokenCount"),
+            "total_tokens": usage.get("totalTokenCount"),
+        },
+    }
+
+
 def main():
-    if len(sys.argv) != 3:
-        print(__doc__)
-        sys.exit(1)
-    repo_url, carpeta_salida = sys.argv[1], Path(sys.argv[2])
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("repo_url")
+    parser.add_argument("carpeta_salida")
+    parser.add_argument("--proveedor", choices=["anthropic", "gemini"], default="anthropic")
+    args = parser.parse_args()
+
+    repo_url, carpeta_salida = args.repo_url, Path(args.carpeta_salida)
     owner, repo = parsear_repo(repo_url)
 
     system_prompt = (AQUI / "system_prompt.md").read_text()
@@ -201,30 +280,24 @@ def main():
 
     user_prompt, metadatos = construir_user_prompt(repo_url, owner, repo)
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print(
-            "ERROR: falta ANTHROPIC_API_KEY. Este script no simula una "
-            "respuesta — sin key real no genera una corrida.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
+    if args.proveedor == "gemini":
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print("ERROR: falta GEMINI_API_KEY. Este script no simula una respuesta.", file=sys.stderr)
+            sys.exit(2)
+        llamar = _llamar_gemini
+    else:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            print("ERROR: falta ANTHROPIC_API_KEY. Este script no simula una respuesta.", file=sys.stderr)
+            sys.exit(2)
+        llamar = _llamar_anthropic
 
-    from anthropic import Anthropic  # import diferido: solo hace falta con key real
-
-    cliente = Anthropic(api_key=api_key)
     t0 = time.monotonic()
-    respuesta = cliente.messages.create(
-        model=MODELO,
-        max_tokens=2000,
-        system=system_prompt_completo,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    resultado = llamar(system_prompt_completo, user_prompt, api_key)
     latencia_ms = round((time.monotonic() - t0) * 1000)
 
-    texto_respuesta = "".join(
-        bloque.text for bloque in respuesta.content if bloque.type == "text"
-    )
+    texto_respuesta = resultado["texto_respuesta"]
     try:
         evaluacion_json = json.loads(texto_respuesta)
         json_valido = True
@@ -235,7 +308,9 @@ def main():
     log = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "repositorio_evaluado": repo_url,
-        "modelo": MODELO,
+        "modo_generacion": "automatico",
+        "proveedor": resultado["proveedor"],
+        "modelo": resultado["modelo"],
         "request": {
             "system_prompt_sha256": sha256_de(system_prompt_completo),
             "user_prompt_sha256": sha256_de(user_prompt),
@@ -246,10 +321,7 @@ def main():
             "json_valido": json_valido,
             "evaluacion": evaluacion_json,
         },
-        "usage": {
-            "input_tokens": respuesta.usage.input_tokens,
-            "output_tokens": respuesta.usage.output_tokens,
-        },
+        "usage": resultado["usage"],
         "latencia_ms": latencia_ms,
     }
 

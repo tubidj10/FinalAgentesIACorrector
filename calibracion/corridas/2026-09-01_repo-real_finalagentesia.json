@@ -1,5 +1,7 @@
 {
   "timestamp": "2026-09-01T00:00:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA",
   "version_rubrica": "v3 (incluye la aclaración de la banda 4-6 en Dimensión 1, agregada durante esta misma corrida)",
   "nota_metodologica": "Segunda validación contra un repo real y externo (el trabajo final real de la materia, no un caso de prueba construido para este parcial). Se detectó durante esta corrida una laguna real en rubrica.md v2: no distinguía 'evidencia parcial honesta y verificable' de 'narración sin evidencia'. Se corrigió la rúbrica antes de cerrar el puntaje (ver rubrica.md, Dimensión 1).",

@@ -1,5 +1,7 @@
 {
   "timestamp": "2026-09-01T07:00:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA (commit 2859279, tras fijar version exacta + agregar correr_corrida.sh + corregir los 5 hallazgos de Fase 5)",
   "version_rubrica": "v5 (checklists explicitos por dimension, primera corrida con este formato)",
   "nota_metodologica": "Esta corrida re-audita las 5 dimensiones item por item contra el checklist nuevo, sin asumir los puntajes anteriores. Dos dimensiones bajan (Economico, Gobierno) no porque el repo haya empeorado sino porque el checklist explicito expuso que ya antes no cumplian un item que rubrica.md ya exigia -- se les habia dado el puntaje alto por impresion general, no por checklist. Esto se documenta sin maquillaje.",
@@ -7,12 +9,36 @@
     {
       "dimension": "Sistema completo y funcionando",
       "checklist": [
-        {"item": "Cada variable de user_prompt.md aparece en al menos una corrida", "cumple": true, "evidencia": "alerta_id/servicio/metrica/valor_actual/umbral/timestamp presentes en input.json de las 3 corridas"},
-        {"item": "Logs con estructura de API real", "cumple": true, "evidencia": "metadata.json trae usage_por_llamada real de Gemini, no texto narrado"},
-        {"item": "Usage/tokens plausibles contra el texto real", "cumple": true, "evidencia": "verificado en la corrida anterior: ~2.97-3.3 caracteres/token, y la aritmetica promptTokenCount+candidatesTokenCount+thoughtsTokenCount=totalTokenCount cierra exacta en las 2 llamadas de corrida_01"},
-        {"item": "Al menos una corrida de camino feliz", "cumple": true, "evidencia": "corrida_01_p1_checkout_api"},
-        {"item": "[9-10] Al menos una corrida documenta una falla real manejada", "cumple": true, "evidencia": "corrida_03: llamadas_herramienta.json registra un 404 servicio_no_encontrado real"},
-        {"item": "[9-10] El manejo de esa falla es visible en la propia corrida", "cumple": true, "evidencia": "corrida_03/output_crudo.json: error_herramienta poblado, confianza=0.3, nivel_autonomia=L1"}
+        {
+          "item": "Cada variable de user_prompt.md aparece en al menos una corrida",
+          "cumple": true,
+          "evidencia": "alerta_id/servicio/metrica/valor_actual/umbral/timestamp presentes en input.json de las 3 corridas"
+        },
+        {
+          "item": "Logs con estructura de API real",
+          "cumple": true,
+          "evidencia": "metadata.json trae usage_por_llamada real de Gemini, no texto narrado"
+        },
+        {
+          "item": "Usage/tokens plausibles contra el texto real",
+          "cumple": true,
+          "evidencia": "verificado en la corrida anterior: ~2.97-3.3 caracteres/token, y la aritmetica promptTokenCount+candidatesTokenCount+thoughtsTokenCount=totalTokenCount cierra exacta en las 2 llamadas de corrida_01"
+        },
+        {
+          "item": "Al menos una corrida de camino feliz",
+          "cumple": true,
+          "evidencia": "corrida_01_p1_checkout_api"
+        },
+        {
+          "item": "[9-10] Al menos una corrida documenta una falla real manejada",
+          "cumple": true,
+          "evidencia": "corrida_03: llamadas_herramienta.json registra un 404 servicio_no_encontrado real"
+        },
+        {
+          "item": "[9-10] El manejo de esa falla es visible en la propia corrida",
+          "cumple": true,
+          "evidencia": "corrida_03/output_crudo.json: error_herramienta poblado, confianza=0.3, nivel_autonomia=L1"
+        }
       ],
       "puntaje_asignado": "10/10",
       "puntaje_ponderado": "30.0",
@@ -21,12 +47,36 @@
     {
       "dimension": "Proceso documentado",
       "checklist": [
-        {"item": "Al menos un tropiezo real documentado", "cumple": true, "evidencia": "DECISIONES.md iteracion 1: traceback real de AuthenticationError"},
-        {"item": "Dice como se resolvio", "cumple": true, "evidencia": "iteracion 1: fail-closed, modo asistido documentado"},
-        {"item": "[9-10] Mas de una decision con este nivel de detalle", "cumple": true, "evidencia": "6 iteraciones documentadas, cada una con su propia falla/decision"},
-        {"item": "[9-10] Cada una nombra la alternativa concreta descartada", "cumple": true, "evidencia": "iteracion 2: variante de user prompt en lote, descartada"},
-        {"item": "[9-10] Cada una da el motivo concreto", "cumple": true, "evidencia": "iteracion 2: 'duplica la superficie de validacion sin agregar valor'"},
-        {"item": "[9-10] Al menos una decision verificable contra la historia real del repo", "cumple": true, "evidencia": "prompts/user_prompt_variante_lote.md sigue versionado como evidencia tangible de la alternativa descartada"}
+        {
+          "item": "Al menos un tropiezo real documentado",
+          "cumple": true,
+          "evidencia": "DECISIONES.md iteracion 1: traceback real de AuthenticationError"
+        },
+        {
+          "item": "Dice como se resolvio",
+          "cumple": true,
+          "evidencia": "iteracion 1: fail-closed, modo asistido documentado"
+        },
+        {
+          "item": "[9-10] Mas de una decision con este nivel de detalle",
+          "cumple": true,
+          "evidencia": "6 iteraciones documentadas, cada una con su propia falla/decision"
+        },
+        {
+          "item": "[9-10] Cada una nombra la alternativa concreta descartada",
+          "cumple": true,
+          "evidencia": "iteracion 2: variante de user prompt en lote, descartada"
+        },
+        {
+          "item": "[9-10] Cada una da el motivo concreto",
+          "cumple": true,
+          "evidencia": "iteracion 2: 'duplica la superficie de validacion sin agregar valor'"
+        },
+        {
+          "item": "[9-10] Al menos una decision verificable contra la historia real del repo",
+          "cumple": true,
+          "evidencia": "prompts/user_prompt_variante_lote.md sigue versionado como evidencia tangible de la alternativa descartada"
+        }
       ],
       "puntaje_asignado": "10/10",
       "puntaje_ponderado": "25.0",
@@ -35,14 +85,46 @@
     {
       "dimension": "Formato y reproducibilidad",
       "checklist": [
-        {"item": "README documenta instalacion exacta", "cumple": true, "evidencia": "'pip install -r requirements.txt'"},
-        {"item": "README documenta ejecucion exacta", "cumple": true, "evidencia": "comando con argumentos reales, incluida la opcion de un solo paso"},
-        {"item": "Variables de entorno nombradas explicitamente", "cumple": true, "evidencia": "ANTHROPIC_API_KEY / GEMINI_API_KEY nombradas por su nombre exacto"},
-        {"item": "Sin secretos hardcodeados (incluido el codigo, Fase 5)", "cumple": true, "evidencia": "verificado leyendo triage_agent.py y monitoring_api_mock.py completos: ninguna key literal"},
-        {"item": "Sin rutas absolutas especificas de una maquina", "cumple": true, "evidencia": "ningun comando documentado usa una ruta fija de usuario"},
-        {"item": "[9-10] Version exactamente fijada", "cumple": true, "evidencia": "agente/requirements.txt: 'anthropic==1.2.0' -- CAMBIO RESPECTO A LA CORRIDA ANTERIOR, antes era 'anthropic>=0.69'"},
-        {"item": "[9-10] Mecanismo de reproduccion de un solo paso", "cumple": true, "evidencia": "agente/correr_corrida.sh: levanta el mock, corre el agente, apaga el mock con un trap incluso si el agente falla -- NUEVO, no existia en la corrida anterior"},
-        {"item": "[9-10] Un tercero llega a un resultado equivalente a al menos una corrida real siguiendo solo el repo", "cumple": true, "evidencia": "corridas/README.md documenta el comando exacto de correr_corrida.sh que reproduce cada corrida"}
+        {
+          "item": "README documenta instalacion exacta",
+          "cumple": true,
+          "evidencia": "'pip install -r requirements.txt'"
+        },
+        {
+          "item": "README documenta ejecucion exacta",
+          "cumple": true,
+          "evidencia": "comando con argumentos reales, incluida la opcion de un solo paso"
+        },
+        {
+          "item": "Variables de entorno nombradas explicitamente",
+          "cumple": true,
+          "evidencia": "ANTHROPIC_API_KEY / GEMINI_API_KEY nombradas por su nombre exacto"
+        },
+        {
+          "item": "Sin secretos hardcodeados (incluido el codigo, Fase 5)",
+          "cumple": true,
+          "evidencia": "verificado leyendo triage_agent.py y monitoring_api_mock.py completos: ninguna key literal"
+        },
+        {
+          "item": "Sin rutas absolutas especificas de una maquina",
+          "cumple": true,
+          "evidencia": "ningun comando documentado usa una ruta fija de usuario"
+        },
+        {
+          "item": "[9-10] Version exactamente fijada",
+          "cumple": true,
+          "evidencia": "agente/requirements.txt: 'anthropic==1.2.0' -- CAMBIO RESPECTO A LA CORRIDA ANTERIOR, antes era 'anthropic>=0.69'"
+        },
+        {
+          "item": "[9-10] Mecanismo de reproduccion de un solo paso",
+          "cumple": true,
+          "evidencia": "agente/correr_corrida.sh: levanta el mock, corre el agente, apaga el mock con un trap incluso si el agente falla -- NUEVO, no existia en la corrida anterior"
+        },
+        {
+          "item": "[9-10] Un tercero llega a un resultado equivalente a al menos una corrida real siguiendo solo el repo",
+          "cumple": true,
+          "evidencia": "corridas/README.md documenta el comando exacto de correr_corrida.sh que reproduce cada corrida"
+        }
       ],
       "puntaje_asignado": "10/10",
       "puntaje_ponderado": "15.0",
@@ -51,12 +133,36 @@
     {
       "dimension": "Análisis económico",
       "checklist": [
-        {"item": "Muestra la formula", "cumple": true, "evidencia": "README: '(4970/1e6)*1.00 + (410/1e6)*5.00'"},
-        {"item": "Declara los supuestos", "cumple": true, "evidencia": "tokens medidos en caracteres reales de corrida_01, heuristica de 4 caracteres/token declarada explicitamente"},
-        {"item": "Orden de magnitud correcto", "cumple": true, "evidencia": "recalculado independientemente: consistente con la arquitectura de 2 llamadas por corrida declarada"},
-        {"item": "[9-10] Contempla explicitamente un caso peor (picos, reintentos)", "cumple": false, "evidencia": "el README compara 2 ESCALAS de volumen (150 vs 5000 alertas/semana), pero ninguna de las dos modela reintentos o picos dentro de la MISMA escala -- son 2 promedios, no un caso base + caso peor"},
-        {"item": "[9-10] Da un rango, no un unico numero", "cumple": false, "evidencia": "cada escala de la tabla tiene un unico valor puntual ($54,60/$109,20/$273,00 por año), no un rango minimo-maximo"},
-        {"item": "[9-10] Si la muestra es chica, lo dice explicitamente", "cumple": true, "evidencia": "'no es el tokenizer real de Claude... es una aproximacion razonable, no una factura real' -- si esta declarado, aunque para la heuristica de tokens, no para el tamaño de muestra de corridas"}
+        {
+          "item": "Muestra la formula",
+          "cumple": true,
+          "evidencia": "README: '(4970/1e6)*1.00 + (410/1e6)*5.00'"
+        },
+        {
+          "item": "Declara los supuestos",
+          "cumple": true,
+          "evidencia": "tokens medidos en caracteres reales de corrida_01, heuristica de 4 caracteres/token declarada explicitamente"
+        },
+        {
+          "item": "Orden de magnitud correcto",
+          "cumple": true,
+          "evidencia": "recalculado independientemente: consistente con la arquitectura de 2 llamadas por corrida declarada"
+        },
+        {
+          "item": "[9-10] Contempla explicitamente un caso peor (picos, reintentos)",
+          "cumple": false,
+          "evidencia": "el README compara 2 ESCALAS de volumen (150 vs 5000 alertas/semana), pero ninguna de las dos modela reintentos o picos dentro de la MISMA escala -- son 2 promedios, no un caso base + caso peor"
+        },
+        {
+          "item": "[9-10] Da un rango, no un unico numero",
+          "cumple": false,
+          "evidencia": "cada escala de la tabla tiene un unico valor puntual ($54,60/$109,20/$273,00 por año), no un rango minimo-maximo"
+        },
+        {
+          "item": "[9-10] Si la muestra es chica, lo dice explicitamente",
+          "cumple": true,
+          "evidencia": "'no es el tokenizer real de Claude... es una aproximacion razonable, no una factura real' -- si esta declarado, aunque para la heuristica de tokens, no para el tamaño de muestra de corridas"
+        }
       ],
       "puntaje_asignado": "8/10",
       "puntaje_ponderado": "12.0",
@@ -65,10 +171,26 @@
     {
       "dimension": "Gobierno y riesgo",
       "checklist": [
-        {"item": "Cada herramienta/accion clasificada explicitamente L0-L4", "cumple": true, "evidencia": "tabla en README y en prompts/system_prompt.md pieza 6"},
-        {"item": "Clasificacion correcta", "cumple": true, "evidencia": "publicar el triage = L2 (reversible), remediacion = fuera de alcance"},
-        {"item": "Permisos reales acotados al minimo", "cumple": true, "evidencia": "tabla de permisos por sistema: monitoreo solo lectura, canal solo publicar, produccion ninguno"},
-        {"item": "[9-10] Evidencia real en corridas/ de que el control humano para una accion L2+ se EJECUTO", "cumple": false, "evidencia": "corrida_01 y corrida_03 muestran el AGENTE marcando requiere_intervencion_humana=true y nivel_autonomia=L1/L2 -- eso es la politica disparandose correctamente, no un registro de que una persona efectivamente decidio algo despues. No hay, en ninguna corrida, un campo tipo 'aprobado_por'/'decision_humana'/timestamp de una respuesta humana real -- a diferencia de calibracion/corridas de este mismo corrector (casos/excelente/corridas/run-031.json), que sí registra 'accion_humana_registrada' con responsable y decision."}
+        {
+          "item": "Cada herramienta/accion clasificada explicitamente L0-L4",
+          "cumple": true,
+          "evidencia": "tabla en README y en prompts/system_prompt.md pieza 6"
+        },
+        {
+          "item": "Clasificacion correcta",
+          "cumple": true,
+          "evidencia": "publicar el triage = L2 (reversible), remediacion = fuera de alcance"
+        },
+        {
+          "item": "Permisos reales acotados al minimo",
+          "cumple": true,
+          "evidencia": "tabla de permisos por sistema: monitoreo solo lectura, canal solo publicar, produccion ninguno"
+        },
+        {
+          "item": "[9-10] Evidencia real en corridas/ de que el control humano para una accion L2+ se EJECUTO",
+          "cumple": false,
+          "evidencia": "corrida_01 y corrida_03 muestran el AGENTE marcando requiere_intervencion_humana=true y nivel_autonomia=L1/L2 -- eso es la politica disparandose correctamente, no un registro de que una persona efectivamente decidio algo despues. No hay, en ninguna corrida, un campo tipo 'aprobado_por'/'decision_humana'/timestamp de una respuesta humana real -- a diferencia de calibracion/corridas de este mismo corrector (casos/excelente/corridas/run-031.json), que sí registra 'accion_humana_registrada' con responsable y decision."
+        }
       ],
       "puntaje_asignado": "8/10",
       "puntaje_ponderado": "12.0",

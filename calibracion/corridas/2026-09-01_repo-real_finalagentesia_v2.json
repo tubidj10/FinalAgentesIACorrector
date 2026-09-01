@@ -1,5 +1,7 @@
 {
   "timestamp": "2026-09-01T04:30:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA (main, commit 85c9e28, posterior a la primera corrida)",
   "version_rubrica": "v3 (con la banda 4-6 de la Dimension 1)",
   "nota_metodologica": "Re-evaluacion del mismo repo tras una correccion real hecha por el autor entre la primera y esta corrida. Solo lectura -- este repo no fue modificado por el corrector ni por esta sesion.",

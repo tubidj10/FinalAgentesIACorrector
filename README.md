@@ -38,10 +38,17 @@ en [`agente/modo_chat.md`](./agente/modo_chat.md).
 
 ```bash
 cd agente
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-...      # solo para este modo
+pip install -r requirements.txt      # solo hace falta para el proveedor anthropic
 export GITHUB_TOKEN=ghp_...          # opcional, solo lectura pública, sube el rate limit
+
+# proveedor por defecto:
+export ANTHROPIC_API_KEY=sk-...
 python3 ejecutar_evaluacion.py https://github.com/<owner>/<repo> ../corridas_manuales/
+
+# alternativa real si la cuenta de Anthropic no está disponible (mismo
+# motivo que documentó FinalAgentesIA en su DECISIONES.md, iteración 5):
+export GEMINI_API_KEY=...
+python3 ejecutar_evaluacion.py https://github.com/<owner>/<repo> ../corridas_manuales/ --proveedor gemini
 ```
 
 El resultado es un JSON con el log transaccional completo de la corrida
@@ -96,6 +103,65 @@ La historia de commits de esta rama (`claude/evaluador-trabajos-ia-vdvp8m`)
 refleja ese orden real, incluyendo el ajuste de rúbrica hecho *después*
 de la primera corrida de calibración, no antes — la rúbrica cambió
 porque una corrida real expuso una ambigüedad, no al revés.
+
+## Análisis económico del corrector
+
+Auditamos rigurosamente el análisis económico de cada agente evaluado
+(Dimensión 4 de `rubrica.md`) — corresponde aplicarnos el mismo estándar
+a nosotros mismos. Faltaba hasta que la auto-evaluación de
+`calibracion/corridas/2026-09-01_autoevaluacion.json` lo marcó como el
+punto más flojo del repo.
+
+**Costo por corrida (medido sobre archivos reales de este repositorio, no
+estimado a ojo):**
+
+- El "prompt de sistema" de cada corrida es `agente/system_prompt.md` +
+  `rubrica.md` completos: **38.903 caracteres** (medido con `wc -c`).
+- El "prompt de usuario" es el contenido de las 5 rutas obligatorias del
+  repo evaluado. Usamos `tubidj10/FinalAgentesIA` como referencia real
+  (uno de los repos más completos que este corrector auditó, no el más
+  chico — para no subestimar el caso típico): README.md (19.859) +
+  DECISIONES.md (23.268) + prompts/system_prompt.md (8.380) +
+  prompts/user_prompt.md (1.468) + corridas/ completo (16.044) =
+  **69.019 caracteres**.
+- Con la heurística de ~4 caracteres/token (la misma que usan
+  `casos/excelente/` y `FinalAgentesIA` cuando no hay tokenizer real
+  disponible — declarada como aproximación, no como factura real):
+  entrada ≈ (38.903 + 69.019) / 4 ≈ **26.980 tokens**.
+- La salida (el JSON de evaluación con checklist completo por dimensión,
+  como el de esta misma corrida) mide en la práctica ~12.000 caracteres
+  ≈ **3.000 tokens**.
+
+Precio de referencia (**verificar contra anthropic.com/pricing al momento
+de uso real, los precios cambian**), `claude-sonnet-5` — USD 3 / millón de
+tokens de entrada, USD 15 / millón de salida:
+
+```
+(26.980 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0809 + 0.0450  ≈  USD 0.13 por corrida
+```
+
+**Proyección para la prueba de fuego:** no tenemos el número real de
+trabajos finales de la cursada — lo declaramos como supuesto explícito:
+asumimos **~30 trabajos finales** (grupos de hasta 6 integrantes, cursada
+de MBA) y un promedio de **2 corridas por trabajo** (la corrección inicial
+más una re-verificación tras feedback, como pasó en la práctica con
+`FinalAgentesIA`).
+
+| Escenario | Corridas | Costo total |
+|---|---:|---:|
+| Caso base (30 trabajos × 2 corridas) | 60 | **≈ USD 7,80** |
+| Caso peor (30 trabajos × 3 corridas, si cada uno pide una segunda re-verificación) | 90 | ≈ USD 11,70 |
+
+Rango declarado: **USD 7,80–11,70** para corregir toda la materia una vez
+con este corrector — comparado contra el tiempo docente que reemplaza,
+es una cifra irrelevante en términos absolutos. La optimización obvia y
+no aplicada todavía: `agente/system_prompt.md` + `rubrica.md` (38.903
+caracteres, ~9.700 tokens) son idénticos en cada corrida — son el
+candidato ideal para *prompt caching*, que bajaría el costo real de la
+porción fija a una fracción de lo calculado arriba a partir de la segunda
+corrida en adelante. No lo medimos en vivo por no tener corridas reales
+vía API (ver Dimensión 1, Sistema, en la auto-evaluación) — es la primera
+mejora a activar si se corre `ejecutar_evaluacion.py` con una key real.
 
 ## Qué NO hace este agente (alcance y gobierno)
 

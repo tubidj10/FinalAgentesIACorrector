@@ -1,5 +1,7 @@
 {
   "timestamp": "2026-08-30T09:00:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "casos/flojo/",
   "version_rubrica": "v2 (después de la aclaración de calibración en la Dimensión 4)",
   "cambios_respecto_a_v1": [
@@ -11,11 +13,36 @@
     }
   ],
   "evaluacion": [
-    { "dimension": "Sistema completo y funcionando", "puntaje_asignado": "4/10", "puntaje_ponderado": "12.0", "justificacion": "Sin cambios respecto a v1: variable CANAL fantasma, sin caso de error documentado." },
-    { "dimension": "Proceso documentado", "puntaje_asignado": "5/10", "puntaje_ponderado": "12.5", "justificacion": "Sin cambios respecto a v1: éxito lineal sin tropiezos, techo duro de 5." },
-    { "dimension": "Formato y reproducibilidad", "puntaje_asignado": "4/10", "puntaje_ponderado": "6.0", "justificacion": "Sin cambios respecto a v1: sin requirements.txt ni versión de Python documentada." },
-    { "dimension": "Análisis económico", "puntaje_asignado": "4/10", "puntaje_ponderado": "6.0", "justificacion": "Corregido tras calibración: 'unos centavos al mes' para una arquitectura de una sola llamada simple es de orden de magnitud plausible, pero no auditable (sin fórmula ni supuestos) -> 4-5, no 1-3." },
-    { "dimension": "Gobierno y riesgo", "puntaje_asignado": "4/10", "puntaje_ponderado": "6.0", "justificacion": "Sin cambios respecto a v1." }
+    {
+      "dimension": "Sistema completo y funcionando",
+      "puntaje_asignado": "4/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "Sin cambios respecto a v1: variable CANAL fantasma, sin caso de error documentado."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "puntaje_asignado": "5/10",
+      "puntaje_ponderado": "12.5",
+      "justificacion": "Sin cambios respecto a v1: éxito lineal sin tropiezos, techo duro de 5."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_asignado": "4/10",
+      "puntaje_ponderado": "6.0",
+      "justificacion": "Sin cambios respecto a v1: sin requirements.txt ni versión de Python documentada."
+    },
+    {
+      "dimension": "Análisis económico",
+      "puntaje_asignado": "4/10",
+      "puntaje_ponderado": "6.0",
+      "justificacion": "Corregido tras calibración: 'unos centavos al mes' para una arquitectura de una sola llamada simple es de orden de magnitud plausible, pero no auditable (sin fórmula ni supuestos) -> 4-5, no 1-3."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "puntaje_asignado": "4/10",
+      "puntaje_ponderado": "6.0",
+      "justificacion": "Sin cambios respecto a v1."
+    }
   ],
   "nota_final_sobre_100": "42.5",
   "veredicto_antifraude": "Limpio",

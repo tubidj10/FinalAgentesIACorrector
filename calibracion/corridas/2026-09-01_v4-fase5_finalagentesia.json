@@ -1,14 +1,41 @@
 {
   "timestamp": "2026-09-01T06:00:00Z",
+  "modo_generacion": "asistido_claude_code",
+  "modo_generacion_nota": "Esta corrida se generó por razonamiento directo de Claude dentro de esta sesión de Claude Code, aplicando system_prompt.md + rubrica.md al repositorio indicado -- no fue una ejecución de agente/ejecutar_evaluacion.py contra una API facturada. Declarado retroactivamente tras la auto-evaluación de 2026-09-01_autoevaluacion.json, que marcó como inconsistente exigirle esta declaración a otros repos sin aplicársela a las propias corridas de este corrector.",
   "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA",
   "version_rubrica": "v4 + Fase 5 (revisión de código, primera corrida con esta capacidad)",
   "nota_metodologica": "Nota de las 5 dimensiones sin cambios respecto a la corrida anterior (92.5/100) -- la Fase 5 es informativa, no puntuada. Novedad de esta corrida: se leyó agente/triage_agent.py y agente/monitoring_api_mock.py, fuera de las 5 rutas obligatorias.",
   "evaluacion": [
-    { "dimension": "Sistema completo y funcionando", "puntaje_asignado": "9/10", "puntaje_ponderado": "27.0", "justificacion": "Sin cambios." },
-    { "dimension": "Proceso documentado", "puntaje_asignado": "10/10", "puntaje_ponderado": "25.0", "justificacion": "Sin cambios." },
-    { "dimension": "Formato y reproducibilidad", "puntaje_asignado": "8/10", "puntaje_ponderado": "12.0", "justificacion": "Sin cambios." },
-    { "dimension": "Análisis económico", "puntaje_asignado": "9/10", "puntaje_ponderado": "13.5", "justificacion": "Sin cambios." },
-    { "dimension": "Gobierno y riesgo", "puntaje_asignado": "10/10", "puntaje_ponderado": "15.0", "justificacion": "Sin cambios." }
+    {
+      "dimension": "Sistema completo y funcionando",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "27.0",
+      "justificacion": "Sin cambios."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "25.0",
+      "justificacion": "Sin cambios."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_asignado": "8/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "Sin cambios."
+    },
+    {
+      "dimension": "Análisis económico",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "13.5",
+      "justificacion": "Sin cambios."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "15.0",
+      "justificacion": "Sin cambios."
+    }
   ],
   "nota_final_sobre_100": "92.5",
   "veredicto_antifraude": "Limpio",
