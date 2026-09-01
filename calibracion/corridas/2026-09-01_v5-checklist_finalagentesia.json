@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-09-01T07:00:00Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA (commit 2859279, tras fijar version exacta + agregar correr_corrida.sh + corregir los 5 hallazgos de Fase 5)",
+  "version_rubrica": "v5 (checklists explicitos por dimension, primera corrida con este formato)",
+  "nota_metodologica": "Esta corrida re-audita las 5 dimensiones item por item contra el checklist nuevo, sin asumir los puntajes anteriores. Dos dimensiones bajan (Economico, Gobierno) no porque el repo haya empeorado sino porque el checklist explicito expuso que ya antes no cumplian un item que rubrica.md ya exigia -- se les habia dado el puntaje alto por impresion general, no por checklist. Esto se documenta sin maquillaje.",
+  "evaluacion": [
+    {
+      "dimension": "Sistema completo y funcionando",
+      "checklist": [
+        {"item": "Cada variable de user_prompt.md aparece en al menos una corrida", "cumple": true, "evidencia": "alerta_id/servicio/metrica/valor_actual/umbral/timestamp presentes en input.json de las 3 corridas"},
+        {"item": "Logs con estructura de API real", "cumple": true, "evidencia": "metadata.json trae usage_por_llamada real de Gemini, no texto narrado"},
+        {"item": "Usage/tokens plausibles contra el texto real", "cumple": true, "evidencia": "verificado en la corrida anterior: ~2.97-3.3 caracteres/token, y la aritmetica promptTokenCount+candidatesTokenCount+thoughtsTokenCount=totalTokenCount cierra exacta en las 2 llamadas de corrida_01"},
+        {"item": "Al menos una corrida de camino feliz", "cumple": true, "evidencia": "corrida_01_p1_checkout_api"},
+        {"item": "[9-10] Al menos una corrida documenta una falla real manejada", "cumple": true, "evidencia": "corrida_03: llamadas_herramienta.json registra un 404 servicio_no_encontrado real"},
+        {"item": "[9-10] El manejo de esa falla es visible en la propia corrida", "cumple": true, "evidencia": "corrida_03/output_crudo.json: error_herramienta poblado, confianza=0.3, nivel_autonomia=L1"}
+      ],
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "30.0",
+      "justificacion": "Los 6 items del checklist (6-8 y 9-10) se cumplen sin excepcion. Corrijo mi propia corrida anterior: le habia puesto 9/10 razonando 'falta un segundo tipo de falla real' -- ese requisito no esta en rubrica.md, que pide 'al menos una', no varias. Sosteniendo un 9 por un criterio que no existía en la rubrica era exactamente el tipo de imprecision que este checklist existe para eliminar. Ya cumple el checklist completo de 9-10; no queda item pendiente en esta dimension."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "checklist": [
+        {"item": "Al menos un tropiezo real documentado", "cumple": true, "evidencia": "DECISIONES.md iteracion 1: traceback real de AuthenticationError"},
+        {"item": "Dice como se resolvio", "cumple": true, "evidencia": "iteracion 1: fail-closed, modo asistido documentado"},
+        {"item": "[9-10] Mas de una decision con este nivel de detalle", "cumple": true, "evidencia": "6 iteraciones documentadas, cada una con su propia falla/decision"},
+        {"item": "[9-10] Cada una nombra la alternativa concreta descartada", "cumple": true, "evidencia": "iteracion 2: variante de user prompt en lote, descartada"},
+        {"item": "[9-10] Cada una da el motivo concreto", "cumple": true, "evidencia": "iteracion 2: 'duplica la superficie de validacion sin agregar valor'"},
+        {"item": "[9-10] Al menos una decision verificable contra la historia real del repo", "cumple": true, "evidencia": "prompts/user_prompt_variante_lote.md sigue versionado como evidencia tangible de la alternativa descartada"}
+      ],
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "25.0",
+      "justificacion": "Los 6 items se cumplen sin excepcion, incluida la iteracion 6 nueva (revision de codigo externa), que agrega una septima decision documentada con el mismo nivel de detalle. Ya cumple el checklist completo de 9-10; no queda item pendiente en esta dimension."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "checklist": [
+        {"item": "README documenta instalacion exacta", "cumple": true, "evidencia": "'pip install -r requirements.txt'"},
+        {"item": "README documenta ejecucion exacta", "cumple": true, "evidencia": "comando con argumentos reales, incluida la opcion de un solo paso"},
+        {"item": "Variables de entorno nombradas explicitamente", "cumple": true, "evidencia": "ANTHROPIC_API_KEY / GEMINI_API_KEY nombradas por su nombre exacto"},
+        {"item": "Sin secretos hardcodeados (incluido el codigo, Fase 5)", "cumple": true, "evidencia": "verificado leyendo triage_agent.py y monitoring_api_mock.py completos: ninguna key literal"},
+        {"item": "Sin rutas absolutas especificas de una maquina", "cumple": true, "evidencia": "ningun comando documentado usa una ruta fija de usuario"},
+        {"item": "[9-10] Version exactamente fijada", "cumple": true, "evidencia": "agente/requirements.txt: 'anthropic==1.2.0' -- CAMBIO RESPECTO A LA CORRIDA ANTERIOR, antes era 'anthropic>=0.69'"},
+        {"item": "[9-10] Mecanismo de reproduccion de un solo paso", "cumple": true, "evidencia": "agente/correr_corrida.sh: levanta el mock, corre el agente, apaga el mock con un trap incluso si el agente falla -- NUEVO, no existia en la corrida anterior"},
+        {"item": "[9-10] Un tercero llega a un resultado equivalente a al menos una corrida real siguiendo solo el repo", "cumple": true, "evidencia": "corridas/README.md documenta el comando exacto de correr_corrida.sh que reproduce cada corrida"}
+      ],
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "15.0",
+      "justificacion": "Los 8 items se cumplen. Este es el cambio real desde la corrida anterior (8/10, techo por version minima sin fijar): los 2 items que faltaban -- version exacta e instrucciones de reproduccion sin ambiguedad -- se resolvieron con commits especificos (fijar anthropic==1.2.0, agregar correr_corrida.sh). No es una mejora cosmetica: correr_corrida.sh resuelve especificamente el item 7 (antes habia que orquestar 2 procesos a mano en 2 terminales, que el checklist anterior no dejaba explicito como el motivo exacto del techo en 8 -- ahora si). Ya cumple el checklist completo de 9-10; no queda item pendiente en esta dimension."
+    },
+    {
+      "dimension": "Análisis económico",
+      "checklist": [
+        {"item": "Muestra la formula", "cumple": true, "evidencia": "README: '(4970/1e6)*1.00 + (410/1e6)*5.00'"},
+        {"item": "Declara los supuestos", "cumple": true, "evidencia": "tokens medidos en caracteres reales de corrida_01, heuristica de 4 caracteres/token declarada explicitamente"},
+        {"item": "Orden de magnitud correcto", "cumple": true, "evidencia": "recalculado independientemente: consistente con la arquitectura de 2 llamadas por corrida declarada"},
+        {"item": "[9-10] Contempla explicitamente un caso peor (picos, reintentos)", "cumple": false, "evidencia": "el README compara 2 ESCALAS de volumen (150 vs 5000 alertas/semana), pero ninguna de las dos modela reintentos o picos dentro de la MISMA escala -- son 2 promedios, no un caso base + caso peor"},
+        {"item": "[9-10] Da un rango, no un unico numero", "cumple": false, "evidencia": "cada escala de la tabla tiene un unico valor puntual ($54,60/$109,20/$273,00 por año), no un rango minimo-maximo"},
+        {"item": "[9-10] Si la muestra es chica, lo dice explicitamente", "cumple": true, "evidencia": "'no es el tokenizer real de Claude... es una aproximacion razonable, no una factura real' -- si esta declarado, aunque para la heuristica de tokens, no para el tamaño de muestra de corridas"}
+      ],
+      "puntaje_asignado": "8/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "CORRECCION respecto a mis 2 corridas anteriores (le habia puesto 9/10 dos veces): 2 de los 3 items de la banda 9-10 no se cumplen (no hay caso peor con reintentos/picos, no hay un rango sino un unico numero por escala). rubrica.md es explicita: 'contempla el caso peor... y da un rango' es lo que separa 9-10 de 6-8 -- no es un matiz de un punto, es la condicion de la banda completa. Sostener un 9 mientras reconocia por escrito que faltaba justamente eso era la misma imprecision que la Dimension de Formato tenia. Para subir un nivel: agregar, a la escala de 150 alertas/semana ya declarada, un calculo de caso peor (ej. +X% de corridas con reintento medido en las propias corridas reales) y expresar el resultado como rango USD min-max, igual a como ya lo hace casos/excelente/README.md de este mismo corrector."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "checklist": [
+        {"item": "Cada herramienta/accion clasificada explicitamente L0-L4", "cumple": true, "evidencia": "tabla en README y en prompts/system_prompt.md pieza 6"},
+        {"item": "Clasificacion correcta", "cumple": true, "evidencia": "publicar el triage = L2 (reversible), remediacion = fuera de alcance"},
+        {"item": "Permisos reales acotados al minimo", "cumple": true, "evidencia": "tabla de permisos por sistema: monitoreo solo lectura, canal solo publicar, produccion ninguno"},
+        {"item": "[9-10] Evidencia real en corridas/ de que el control humano para una accion L2+ se EJECUTO", "cumple": false, "evidencia": "corrida_01 y corrida_03 muestran el AGENTE marcando requiere_intervencion_humana=true y nivel_autonomia=L1/L2 -- eso es la politica disparandose correctamente, no un registro de que una persona efectivamente decidio algo despues. No hay, en ninguna corrida, un campo tipo 'aprobado_por'/'decision_humana'/timestamp de una respuesta humana real -- a diferencia de calibracion/corridas de este mismo corrector (casos/excelente/corridas/run-031.json), que sí registra 'accion_humana_registrada' con responsable y decision."}
+      ],
+      "puntaje_asignado": "8/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "CORRECCION respecto a mis 2 corridas anteriores (le habia puesto 10/10 dos veces sin marcar este item por separado). Los 3 items de 6-8 se cumplen sin objecion. El item de 9-10 NO se cumple: hay evidencia de que el AGENTE aplica correctamente su propia politica de escalamiento (eso ya vale los 8 puntos), pero rubrica.md pide evidencia de que el control humano 'efectivamente se ejecuto' -- un log de aprobacion o rechazo de una persona real, no la propuesta del agente de que hace falta una. Es una distincion real, no un tecnicismo: un atacante que quisiera ver si el 'humano en el loop' es efectivo necesita ver que un humano REALMENTE actuo, no que el agente correctamente le pidio que actue. Para subir un nivel: la proxima vez que se corra una alerta P1/P2 real, registrar en el mismo directorio de la corrida (o en un archivo aparte referenciado desde ahi) quien la reviso y que decidio -- un campo tan simple como 'revisado_por' + 'decision' + timestamp alcanza."
+    }
+  ],
+  "nota_final_sobre_100": "94.0",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "94.0/100 (subio de 92.5, pero no por las mismas razones en las 5 dimensiones). Sistema y Formato subieron de verdad: se cerraron 2 brechas reales con cambios especificos y verificables (mecanismo de reproduccion de un paso, version exacta fijada) mas una correccion mia sobre un criterio que no estaba en la rubrica (Sistema). Economico y Gobierno bajaron: no porque el repo haya empeorado, sino porque el checklist expuso que 2 corridas anteriores les habian dado el techo de la banda sin que 2 (Economico) y 1 (Gobierno) de los items de 9-10 se cumplieran -- se los sostuve por impresion general, exactamente la imprecision que motivo este cambio de formato. La decision de diseño mas importante de esta corrida no es sobre el repo evaluado: es que el corrector ahora se audita a si mismo con el mismo rigor con el que audita al resto.",
+  "sugerencia_de_mejora": "Dos pendientes concretos y ya verificables, ambos en Gobierno/Economico: (1) registrar una decision humana real (no solo la propuesta del agente) en al menos una corrida futura; (2) expresar el analisis economico como rango min-max con un caso peor explicito, no 2 promedios por escala."
+}
