@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/firebase/firebase-tools/master/schema/firestore-blueprint.json",
+  "entities": {
+    "users": {
+      "description": "Usuarios habilitados para acceder y ejecutar la plataforma de corrección",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Correo electrónico del usuario"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "evaluator", "viewer"],
+          "description": "Rol de permisos del usuario"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nombre visible del usuario"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL del avatar de Google"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive", "pending"],
+          "description": "Estado de habilitación de acceso"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Email del administrador que autorizó al usuario"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp ISO de creación"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp ISO de última modificación"
+        }
+      },
+      "required": ["email", "role", "status"]
+    },
+    "access_requests": {
+      "description": "Solicitudes de acceso pendientes de aprobación por el admin",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Email solicitante"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nombre del solicitante"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Foto de Google del solicitante"
+        },
+        "requestedAt": {
+          "type": "string",
+          "description": "Fecha y hora de solicitud"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Estado de la solicitud"
+        }
+      },
+      "required": ["email", "requestedAt", "status"]
+    }
+  }
+}

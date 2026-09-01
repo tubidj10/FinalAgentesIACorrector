@@ -62,15 +62,22 @@ const EXTENSIONES_CODIGO = new Set([
   ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rb", ".java", ".rs", ".sh"
 ]);
 
-const DIRECTORIOS_EXCLUIDOS = new Set([
-  ".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "build", "corridas"
-]);
+// In-memory cache for extracted repo data (TTL: 5 minutes)
+const repoExtractionCache = new Map<string, { data: ExtractedRepoData; expiresAt: number }>();
+const detectedBranchCache = new Map<string, string>();
+
+export function clearRepoCache(url?: string) {
+  if (url) {
+    repoExtractionCache.delete(url.trim().toLowerCase());
+  } else {
+    repoExtractionCache.clear();
+  }
+}
 
 export function parseRepoUrl(url: string): { owner: string; repo: string } {
   const clean = url.trim();
   const match = clean.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/);
   if (!match) {
-    // If user passed owner/repo format
     const simpleMatch = clean.match(/^([^/]+)\/([^/]+)$/);
     if (simpleMatch) {
       return { owner: simpleMatch[1], repo: simpleMatch[2] };
@@ -80,45 +87,92 @@ export function parseRepoUrl(url: string): { owner: string; repo: string } {
   return { owner: match[1], repo: match[2] };
 }
 
+async function detectDefaultBranch(owner: string, repo: string, token?: string): Promise<string> {
+  const cacheKey = `${owner}/${repo}`.toLowerCase();
+  if (detectedBranchCache.has(cacheKey)) {
+    return detectedBranchCache.get(cacheKey)!;
+  }
+
+  // Quick check: check main then master with 2s timeout
+  try {
+    const checkMain = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/main/README.md`, {
+      method: 'HEAD',
+      headers: { 'User-Agent': 'FinalAgentesIA-Evaluator/1.0' },
+      signal: AbortSignal.timeout(2000)
+    });
+    if (checkMain.ok) {
+      detectedBranchCache.set(cacheKey, 'main');
+      return 'main';
+    }
+  } catch {}
+
+  try {
+    const checkMaster = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/master/README.md`, {
+      method: 'HEAD',
+      headers: { 'User-Agent': 'FinalAgentesIA-Evaluator/1.0' },
+      signal: AbortSignal.timeout(2000)
+    });
+    if (checkMaster.ok) {
+      detectedBranchCache.set(cacheKey, 'master');
+      return 'master';
+    }
+  } catch {}
+
+  detectedBranchCache.set(cacheKey, 'main');
+  return 'main';
+}
+
 export async function fetchGitHubFile(owner: string, repo: string, path: string, token?: string): Promise<string | null> {
-  const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github+json',
-    'User-Agent': 'FinalAgentesIA-Evaluator/1.0',
-  };
+  const branch = await detectDefaultBranch(owner, repo, token);
+  
+  // 1. First priority: Fast Raw fetch (no rate limit, ~100ms)
+  try {
+    const rawRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`, {
+      headers: { 'User-Agent': 'FinalAgentesIA-Evaluator/1.0' },
+      signal: AbortSignal.timeout(3500)
+    });
+    if (rawRes.ok) {
+      const text = await rawRes.text();
+      if (text && !text.startsWith('404: Not Found')) {
+        return text;
+      }
+    }
+  } catch (e) {}
+
+  // 2. Fallback to alternative branch if raw failed
+  const altBranch = branch === 'main' ? 'master' : 'main';
+  try {
+    const rawAltRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${altBranch}/${path}`, {
+      headers: { 'User-Agent': 'FinalAgentesIA-Evaluator/1.0' },
+      signal: AbortSignal.timeout(3000)
+    });
+    if (rawAltRes.ok) {
+      const text = await rawAltRes.text();
+      if (text && !text.startsWith('404: Not Found')) {
+        return text;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Fallback: Authenticated GitHub API if token is provided
   const authToken = token || process.env.GITHUB_TOKEN;
   if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
-  }
-
-  // 1. Try standard GitHub API
-  try {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
-    if (res.ok) {
-      const data = await res.json() as any;
-      if (data && data.type === 'file' && data.content) {
-        return Buffer.from(data.content, 'base64').toString('utf-8');
-      }
-    }
-  } catch (e) {
-    // proceed to raw fallback
-  }
-
-  // 2. Fallback to raw.githubusercontent.com (bypasses 60 req/hour unauthenticated API rate limits)
-  const branches = ['main', 'master', 'HEAD'];
-  for (const branch of branches) {
     try {
-      const rawRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`, {
-        headers: { 'User-Agent': 'FinalAgentesIA-Evaluator/1.0' }
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+        headers: {
+          'Accept': 'application/vnd.github+json',
+          'Authorization': `Bearer ${authToken}`,
+          'User-Agent': 'FinalAgentesIA-Evaluator/1.0'
+        },
+        signal: AbortSignal.timeout(3000)
       });
-      if (rawRes.ok) {
-        const text = await rawRes.text();
-        if (text && !text.startsWith('404: Not Found')) {
-          return text;
+      if (res.ok) {
+        const data = await res.json() as any;
+        if (data && data.type === 'file' && data.content) {
+          return Buffer.from(data.content, 'base64').toString('utf-8');
         }
       }
-    } catch (e) {
-      // try next branch
-    }
+    } catch (e) {}
   }
 
   return null;
@@ -134,23 +188,13 @@ export async function fetchGitHubDirectory(owner: string, repo: string, path: st
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
-  // 1. Try standard GitHub API
-  try {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
-    if (res.ok) {
-      const data = await res.json() as any;
-      if (Array.isArray(data)) {
-        return data.map(item => ({ name: item.name, type: item.type }));
-      }
-    }
-  } catch (e) {
-    // proceed
-  }
-
-  // 2. Try git tree API
+  // Try git tree API
   for (const branch of ['main', 'master']) {
     try {
-      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers });
+      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, {
+        headers,
+        signal: AbortSignal.timeout(3000)
+      });
       if (treeRes.ok) {
         const treeData = await treeRes.json() as any;
         if (treeData && Array.isArray(treeData.tree)) {
@@ -166,12 +210,10 @@ export async function fetchGitHubDirectory(owner: string, repo: string, path: st
           }
         }
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }
 
-  // 3. Fallback: probe common files for corridas directory
+  // Fallback: probe common files for corridas directory
   if (path === 'corridas' || path === 'corridas/') {
     const commonNames = [
       '2026-08-25-143012_run-014.json',
@@ -183,17 +225,17 @@ export async function fetchGitHubDirectory(owner: string, repo: string, path: st
       'corrida_429.json',
       'corrida_error.json',
       'corrida_fallida.json',
-      'log1.json',
-      'log_1.json',
-      'log2.json'
+      'log1.json'
     ];
     const found: { name: string; type: string }[] = [];
-    for (const name of commonNames) {
-      const probe = await fetchGitHubFile(owner, repo, `corridas/${name}`, token);
-      if (probe !== null) {
-        found.push({ name, type: 'file' });
-      }
-    }
+    await Promise.all(
+      commonNames.map(async (name) => {
+        const probe = await fetchGitHubFile(owner, repo, `corridas/${name}`, token);
+        if (probe !== null) {
+          found.push({ name, type: 'file' });
+        }
+      })
+    );
     if (found.length > 0) return found;
   }
 
@@ -211,7 +253,10 @@ export async function fetchGitHubCommits(owner: string, repo: string, token?: st
   }
 
   try {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=50`, { headers });
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=40`, {
+      headers,
+      signal: AbortSignal.timeout(3000)
+    });
     if (!res.ok) return null;
     const data = await res.json() as any[];
     if (!Array.isArray(data) || data.length === 0) return null;
@@ -254,6 +299,19 @@ export async function extractRepoContents(
   githubToken?: string
 ): Promise<ExtractedRepoData> {
   const cleanInput = urlOrPreset.trim().toLowerCase();
+  const cacheKey = `${cleanInput}_${githubToken ? 'auth' : 'public'}`;
+  const now = Date.now();
+
+  const cached = repoExtractionCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return {
+      ...cached.data,
+      metadatos_extraccion: {
+        ...cached.data.metadatos_extraccion,
+        modo_fuente: 'cache'
+      }
+    };
+  }
   
   // 1. Only synthetic presets (excelente, flojo, tramposo) bypass live GitHub
   const syntheticPresetIds = ['excelente', 'flojo', 'tramposo'];
@@ -550,7 +608,7 @@ export async function extractRepoContents(
     totalChars += code.contenido.length;
   }
 
-  return {
+  const result: ExtractedRepoData = {
     owner,
     repo,
     url: `https://github.com/${owner}/${repo}`,
@@ -565,4 +623,7 @@ export async function extractRepoContents(
       modo_fuente: 'github_api'
     }
   };
+
+  repoExtractionCache.set(cacheKey, { data: result, expiresAt: now + 5 * 60 * 1000 });
+  return result;
 }

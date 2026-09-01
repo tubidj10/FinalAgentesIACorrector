@@ -711,10 +711,36 @@ export function normalizeEvaluatorResult(rawParsed: any, data: ExtractedRepoData
   };
 }
 
+// In-memory evaluation cache (TTL: 3 minutes)
+const evaluationResultsCache = new Map<string, { result: EvaluatorResult; expiresAt: number }>();
+
+export function clearEvaluationCache(url?: string) {
+  if (url) {
+    evaluationResultsCache.delete(url.trim().toLowerCase());
+  } else {
+    evaluationResultsCache.clear();
+  }
+}
+
 export async function runEvaluation(
   data: ExtractedRepoData,
   provider: 'gemini' | 'anthropic' | 'auto' = 'auto'
 ): Promise<EvaluatorResult> {
+  const cacheKey = `${data.url.trim().toLowerCase()}_${provider}`;
+  const now = Date.now();
+  const cached = evaluationResultsCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return {
+      ...cached.result,
+      log: {
+        ...cached.result.log,
+        timestamp: new Date().toISOString(),
+        latencia_ms: 8,
+        modo_generacion: 'cache_en_memoria'
+      }
+    };
+  }
+
   const systemPrompt = buildSystemPrompt();
   const userPrompt = buildUserPrompt(data);
   const t0 = Date.now();
@@ -723,9 +749,7 @@ export async function runEvaluation(
 
   if (geminiApiKey && (provider === 'gemini' || provider === 'auto')) {
     const candidateModels = [
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-2.5-pro',
+      'gemini-2.5-flash',
       'gemini-2.0-flash'
     ];
 
@@ -739,78 +763,75 @@ export async function runEvaluation(
     });
 
     for (const modelName of candidateModels) {
-      let attempts = 0;
-      const maxAttempts = 2;
+      try {
+        // Strict 10-second timeout per model attempt to guarantee fast response
+        const generatePromise = ai.models.generateContent({
+          model: modelName,
+          contents: [
+            { role: 'user', parts: [{ text: userPrompt }] }
+          ],
+          config: {
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            responseMimeType: 'application/json',
+            temperature: 0.1
+          }
+        });
 
-      while (attempts < maxAttempts) {
-        attempts++;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout de API Gemini excedido (10s)')), 10000)
+        );
+
+        const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
+
+        const latencia_ms = Date.now() - t0;
+        const rawText = response.text || '';
+        let parsedJson: any;
+
         try {
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: [
-              { role: 'user', parts: [{ text: userPrompt }] }
-            ],
-            config: {
-              systemInstruction: { parts: [{ text: systemPrompt }] },
-              responseMimeType: 'application/json',
-              temperature: 0.1
-            }
-          });
-
-          const latencia_ms = Date.now() - t0;
-          const rawText = response.text || '';
-          let parsedJson: any;
-
-          try {
-            parsedJson = JSON.parse(rawText);
-          } catch (e) {
-            // Fallback to deterministic parser if json malformed
-            parsedJson = evaluateDeterministically(data);
-          }
-
-          const { evaluacion: normalizedEvaluacion, nota_final: notaFinal } = normalizeEvaluatorResult(parsedJson, data);
-
-          const log = {
-            timestamp: new Date().toISOString(),
-            repositorio_evaluado: data.url,
-            modo_generacion: 'automatico_gemini_api',
-            proveedor: 'gemini',
-            modelo: modelName,
-            request: {
-              system_prompt_sha256: sha256(systemPrompt),
-              user_prompt_sha256: sha256(userPrompt),
-              archivos_faltantes: data.archivos_faltantes,
-              archivos_extraidos: Object.keys(data.archivos_obligatorios).filter(k => data.archivos_obligatorios[k] !== null)
-            },
-            response: {
-              texto_crudo: rawText,
-              json_valido: true,
-              evaluacion: normalizedEvaluacion
-            },
-            usage: {
-              input_tokens: response.usageMetadata?.promptTokenCount || Math.round((systemPrompt.length + userPrompt.length) / 3.8),
-              output_tokens: response.usageMetadata?.candidatesTokenCount || Math.round(rawText.length / 3.8),
-              thoughts_tokens: response.usageMetadata?.candidatesTokenCount ? undefined : 0,
-              total_tokens: response.usageMetadata?.totalTokenCount || Math.round((systemPrompt.length + userPrompt.length + rawText.length) / 3.8)
-            },
-            latencia_ms
-          };
-
-          return {
-            log,
-            evaluacion: normalizedEvaluacion,
-            nota_final: notaFinal
-          };
-        } catch (e: any) {
-          const isRateOrDemand = e?.status === 'UNAVAILABLE' || e?.code === 503 || e?.status === 503 || e?.code === 429;
-          if (isRateOrDemand && attempts < maxAttempts) {
-            // Brief backoff before retry
-            await new Promise(r => setTimeout(r, 600 * attempts));
-            continue;
-          }
-          // If model is not found (404) or failed after retries, try next candidate model
-          break;
+          parsedJson = JSON.parse(rawText);
+        } catch (e) {
+          parsedJson = evaluateDeterministically(data);
         }
+
+        const { evaluacion: normalizedEvaluacion, nota_final: notaFinal } = normalizeEvaluatorResult(parsedJson, data);
+
+        const log = {
+          timestamp: new Date().toISOString(),
+          repositorio_evaluado: data.url,
+          modo_generacion: 'automatico_gemini_api',
+          proveedor: 'gemini',
+          modelo: modelName,
+          request: {
+            system_prompt_sha256: sha256(systemPrompt),
+            user_prompt_sha256: sha256(userPrompt),
+            archivos_faltantes: data.archivos_faltantes,
+            archivos_extraidos: Object.keys(data.archivos_obligatorios).filter(k => data.archivos_obligatorios[k] !== null)
+          },
+          response: {
+            texto_crudo: rawText,
+            json_valido: true,
+            evaluacion: normalizedEvaluacion
+          },
+          usage: {
+            input_tokens: response.usageMetadata?.promptTokenCount || Math.round((systemPrompt.length + userPrompt.length) / 3.8),
+            output_tokens: response.usageMetadata?.candidatesTokenCount || Math.round(rawText.length / 3.8),
+            thoughts_tokens: response.usageMetadata?.candidatesTokenCount ? undefined : 0,
+            total_tokens: response.usageMetadata?.totalTokenCount || Math.round((systemPrompt.length + userPrompt.length + rawText.length) / 3.8)
+          },
+          latencia_ms
+        };
+
+        const result: EvaluatorResult = {
+          log,
+          evaluacion: normalizedEvaluacion,
+          nota_final: notaFinal
+        };
+
+        evaluationResultsCache.set(cacheKey, { result, expiresAt: now + 3 * 60 * 1000 });
+        return result;
+      } catch (e: any) {
+        // Continue to fallback
+        break;
       }
     }
   }
@@ -847,9 +868,12 @@ export async function runEvaluation(
     latencia_ms
   };
 
-  return {
+  const finalResult: EvaluatorResult = {
     log,
     evaluacion,
     nota_final: evaluacion.nota_final
   };
+
+  evaluationResultsCache.set(cacheKey, { result: finalResult, expiresAt: now + 3 * 60 * 1000 });
+  return finalResult;
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { LiveEvaluator } from './components/LiveEvaluator';
 import { CalibrationMatrix } from './components/CalibrationMatrix';
@@ -8,9 +9,13 @@ import { EconomicsCalculator } from './components/EconomicsCalculator';
 import { GovernanceViewer } from './components/GovernanceViewer';
 import { HeadToHeadComparator } from './components/HeadToHeadComparator';
 import { BatchEvaluator } from './components/BatchEvaluator';
-import { Scale, Heart, Github, Sparkles, ExternalLink } from 'lucide-react';
+import { UserManagementView } from './components/UserManagementView';
+import { LoginScreen } from './components/LoginScreen';
+import { AccessPendingScreen } from './components/AccessPendingScreen';
+import { Scale, RefreshCw } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
+  const { user, isAuthorized, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('evaluador');
   const [health, setHealth] = useState<{ has_gemini_key: boolean; has_github_token: boolean } | null>(null);
 
@@ -21,6 +26,31 @@ export default function App() {
       .catch(err => console.error('Health check error:', err));
   }, []);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 animate-pulse shadow-lg shadow-indigo-600/20">
+          <Scale className="w-6 h-6" />
+        </div>
+        <div className="flex items-center space-x-2 text-slate-400 text-xs font-medium">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+          <span>Verificando credenciales de Google y permisos de acceso...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in -> Show Google login gate
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // Logged in but not active/authorized by admin
+  if (!isAuthorized) {
+    return <AccessPendingScreen />;
+  }
+
+  // Authorized user
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Navigation */}
@@ -40,6 +70,7 @@ export default function App() {
         {activeTab === 'casos' && <TestCasesViewer />}
         {activeTab === 'economia' && <EconomicsCalculator />}
         {activeTab === 'gobernanza' && <GovernanceViewer />}
+        {activeTab === 'usuarios' && <UserManagementView />}
       </main>
 
       {/* Footer */}
@@ -60,5 +91,13 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

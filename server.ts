@@ -6,8 +6,8 @@ import { createServer as createViteServer } from 'vite';
 import { RUBRIC_DIMENSIONS } from './server/data/rubric.js';
 import { loadCalibrationRuns } from './server/data/calibration.js';
 import { getPresetCases } from './server/data/presets.js';
-import { extractRepoContents } from './server/github.js';
-import { runEvaluation } from './server/evaluator.js';
+import { extractRepoContents, clearRepoCache } from './server/github.js';
+import { runEvaluation, clearEvaluationCache } from './server/evaluator.js';
 
 async function startServer() {
   const app = express();
@@ -83,9 +83,14 @@ async function startServer() {
 
   app.post('/api/evaluar', async (req, res) => {
     try {
-      const { repoUrl, githubToken, provider } = req.body;
+      const { repoUrl, githubToken, provider, forceRefresh } = req.body;
       if (!repoUrl) {
         return res.status(400).json({ error: 'La URL del repositorio es requerida' });
+      }
+
+      if (forceRefresh) {
+        clearRepoCache(repoUrl);
+        clearEvaluationCache(repoUrl);
       }
 
       // Extract repo content

@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email.lower() == 'martindperez@gmail.com'
+      );
+    }
+    
+    function isActiveUser() {
+      return isAuthenticated() && (
+        isSuperAdmin() || 
+        exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) &&
+        get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.status == 'active'
+      );
+    }
+    
+    // Users collection
+    match /users/{userEmail} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+    
+    // Access requests
+    match /access_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Default rule
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}

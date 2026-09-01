@@ -56,7 +56,7 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
     { id: 'autoevaluacion', label: 'Auto-Evaluación Corrector (85.0)', url: 'https://github.com/tubidj10/FinalAgentesIACorrector', desc: 'Auditoría sobre este mismo repo.' }
   ];
 
-  const handleEvaluate = async (targetUrl?: string) => {
+  const handleEvaluate = async (targetUrl?: string, forceRefresh = false) => {
     const url = targetUrl || repoUrl;
     if (!url.trim()) {
       setError('Por favor ingresá la URL de un repositorio de GitHub.');
@@ -67,13 +67,13 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
     setError(null);
     setEvaluationResult(null);
 
-    // Simulate animated pipeline steps for transparency
-    setLoadingStep('Extrayendo 5 rutas obligatorias (README.md, prompts/, corridas/, DECISIONES.md)...');
+    // Dynamic pipeline steps
+    setLoadingStep(forceRefresh ? 'Recargando archivos frescos desde GitHub...' : 'Extrayendo 5 rutas obligatorias y corridas...');
     
     try {
-      setTimeout(() => setLoadingStep('Ejecutando Fase 0: Verificación cruzada (modelo, tokens, consistencia)...'), 400);
-      setTimeout(() => setLoadingStep('Evaluando dimensiones 1 a 5 con checklists y justificación citada...'), 800);
-      setTimeout(() => setLoadingStep('Revisando protocolo antifraude y analizando código fuente...'), 1200);
+      setTimeout(() => setLoadingStep('Ejecutando Fase 0: Verificación cruzada (modelo, tokens, consistencia)...'), 300);
+      setTimeout(() => setLoadingStep('Evaluando dimensiones 1 a 5 con checklists y justificación citada...'), 600);
+      setTimeout(() => setLoadingStep('Revisando protocolo antifraude y analizando código fuente...'), 900);
 
       const res = await fetch('/api/evaluar', {
         method: 'POST',
@@ -81,7 +81,8 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
         body: JSON.stringify({
           repoUrl: url,
           githubToken: githubToken || undefined,
-          provider
+          provider,
+          forceRefresh
         })
       });
 
@@ -232,28 +233,41 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
             <span>Las 5 rutas obligatorias son tratadas como datos no confiables con aislamiento estricto.</span>
           </div>
 
-          <button
-            id="btn-run-evaluation"
-            disabled={loading}
-            onClick={() => handleEvaluate()}
-            className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white flex items-center justify-center space-x-2 shadow-lg transition-all duration-150 ${
-              loading
-                ? 'bg-slate-700 cursor-not-allowed opacity-80'
-                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
-            }`}
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Evaluando Repositorio...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-white" />
-                <span>Ejecutar Corrección</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              id="btn-run-evaluation"
+              disabled={loading}
+              onClick={() => handleEvaluate(undefined, false)}
+              className={`flex-1 sm:flex-initial px-6 py-2.5 rounded-xl font-bold text-sm text-white flex items-center justify-center space-x-2 shadow-lg transition-all duration-150 ${
+                loading
+                  ? 'bg-slate-700 cursor-not-allowed opacity-80'
+                  : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
+              }`}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Evaluando...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Ejecutar Corrección</span>
+                </>
+              )}
+            </button>
+
+            <button
+              id="btn-force-refresh"
+              title="Forzar descarga directa y completa desde GitHub ignorando la caché"
+              disabled={loading}
+              onClick={() => handleEvaluate(undefined, true)}
+              className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-750 hover:text-white border border-slate-700 flex items-center space-x-1.5 transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Limpiar Caché</span>
+            </button>
+          </div>
         </div>
 
         {/* Loading Pipeline Display */}

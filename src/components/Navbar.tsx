@@ -6,14 +6,19 @@ import {
   BookOpen, 
   Layers, 
   DollarSign, 
-  ShieldCheck,
-  Sparkles,
-  Github,
-  GitCompare,
-  ListOrdered
+  ShieldCheck, 
+  Github, 
+  GitCompare, 
+  ListOrdered, 
+  Users, 
+  LogOut, 
+  Crown, 
+  User as UserIcon 
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { SUPER_ADMIN_EMAIL } from '../lib/firebase';
 
-export type ActiveTab = 'evaluador' | 'batch' | 'comparador' | 'calibracion' | 'rubrica' | 'casos' | 'economia' | 'gobernanza';
+export type ActiveTab = 'evaluador' | 'batch' | 'comparador' | 'calibracion' | 'rubrica' | 'casos' | 'economia' | 'gobernanza' | 'usuarios';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -22,9 +27,11 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGeminiKey }) => {
+  const { user, appUser, isAdmin, isSuperAdmin, logout, pendingRequests } = useAuth();
+
   const tabs = [
     { id: 'evaluador' as ActiveTab, label: 'Evaluador en Vivo', icon: Play },
-    { id: 'batch' as ActiveTab, label: 'Evaluador en Lote (Listado)', icon: ListOrdered },
+    { id: 'batch' as ActiveTab, label: 'Evaluador en Lote', icon: ListOrdered },
     { id: 'comparador' as ActiveTab, label: 'Comparador A vs B', icon: GitCompare },
     { id: 'calibracion' as ActiveTab, label: 'Matriz de Calibración', icon: BarChart3 },
     { id: 'rubrica' as ActiveTab, label: 'Rúbrica v5', icon: BookOpen },
@@ -32,6 +39,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
     { id: 'economia' as ActiveTab, label: 'Calculadora de Costos', icon: DollarSign },
     { id: 'gobernanza' as ActiveTab, label: 'Gobernanza L0–L4', icon: ShieldCheck },
   ];
+
+  if (isAdmin) {
+    tabs.push({ 
+      id: 'usuarios' as ActiveTab, 
+      label: pendingRequests.length > 0 ? `Gestión de Usuarios (${pendingRequests.length})` : 'Gestión de Usuarios', 
+      icon: Users 
+    });
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
@@ -54,16 +69,59 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
             </div>
           </div>
 
-          {/* Status Badge */}
-          <div className="hidden lg:flex items-center space-x-3 text-xs">
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300">
+          {/* Right User & Status Area */}
+          <div className="flex items-center space-x-3 text-xs">
+            <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300">
               <span className={`w-2 h-2 rounded-full ${hasGeminiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>{hasGeminiKey ? 'Gemini 2.5 Flash Activo' : 'Motor Calibrado Local'}</span>
+              <span>{hasGeminiKey ? 'Gemini 2.5 Flash' : 'Motor Calibrado'}</span>
             </div>
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Fase 0 Verificación Cruzada</span>
-            </div>
+
+            {/* Authenticated User Pill */}
+            {user && (
+              <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
+                <div className="flex items-center space-x-2 bg-slate-950/70 border border-slate-800 px-2.5 py-1 rounded-xl">
+                  {user.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt={user.displayName || user.email || ''} 
+                      className="w-5 h-5 rounded-full border border-slate-700 object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 text-[10px] font-bold">
+                      {user.email ? user.email[0].toUpperCase() : 'U'}
+                    </div>
+                  )}
+
+                  <div className="hidden md:flex flex-col text-left">
+                    <span className="font-semibold text-slate-200 text-[11px] leading-tight truncate max-w-[130px]">
+                      {user.displayName || user.email?.split('@')[0]}
+                    </span>
+                    <span className="text-[9px] text-slate-400 flex items-center gap-0.5 leading-none mt-0.5">
+                      {isSuperAdmin ? (
+                        <span className="text-amber-400 font-bold flex items-center gap-0.5">
+                          <Crown className="w-2.5 h-2.5" /> Super Admin
+                        </span>
+                      ) : isAdmin ? (
+                        <span className="text-indigo-400 font-bold">Admin</span>
+                      ) : (
+                        <span className="text-emerald-400">Evaluador</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Logout Button */}
+                <button
+                  id="btn-logout"
+                  onClick={() => logout()}
+                  title="Cerrar sesión"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -77,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
                 key={tab.id}
                 id={`tab-btn-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
+                className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 relative ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -85,6 +143,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
+                {tab.id === 'usuarios' && pendingRequests.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                )}
               </button>
             );
           })}
