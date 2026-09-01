@@ -99,7 +99,14 @@ proceso sea repetible por un tercero sin adivinar nada.
 | 2–3 | Están todos los archivos/carpetas, pero el `README.md` no alcanza para reproducir la corrida (falta cómo instalar, cómo ejecutar, o con qué credenciales/variables de entorno). |
 | 4–5 | Estructura completa y README con pasos de instalación/ejecución, pero con al menos un paso ambiguo o dependiente de estado no versionado (una API key hardcodeada, una ruta absoluta de la máquina del alumno). |
 | 6–8 | Reproducible siguiendo el README al pie de la letra, variables de entorno documentadas explícitamente, sin secretos en el repo. |
-| 9–10 | Además de lo anterior: instrucciones de reproducibilidad verificadas por el propio repo (ej. un script de setup, un `requirements.txt`/`package.json` con versiones fijadas) que permiten reproducir la corrida exacta de `corridas/` sin ambigüedad alguna. |
+| 9–10 | Además de lo anterior: instrucciones de reproducibilidad verificadas por el propio repo (ej. un script de setup, un `requirements.txt`/`package.json` con versiones **fijadas exactas**, `==`/lockfile — no rangos mínimos `>=`) que permiten reproducir la corrida exacta de `corridas/` sin ambigüedad alguna. |
+
+> **Nota de calibración (ver `calibracion.md`):** un `requirements.txt` con
+> `>=` (versión mínima, no exacta) no alcanza para 9–10 aunque el resto sea
+> impecable — techo 8, porque una versión mínima no fija exactamente qué se
+> ejecutó. Esta aclaración se agregó después de una corrida de calibración
+> real donde el agente y el criterio humano del grupo no coincidían en este
+> punto.
 
 ---
 
@@ -115,8 +122,8 @@ contra lo que el alumno declara.
 
 | Nivel | Evidencia requerida |
 |---|---|
-| 1–3 | No hay análisis económico, o el número declarado es irreal para la arquitectura descrita (ej. "arquitectura multiagente con 5 LLMs por transacción" pero proyecta menos de USD 1/año de costo total, o el cálculo tiene un error de orden de magnitud verificable). Penalización automática y fuerte ante esta discrepancia. |
-| 4–5 | Hay un cálculo, el orden de magnitud es razonable, pero no muestra la fórmula ni los supuestos (tokens promedio por corrida, volumen esperado) — no es auditable. |
+| 1–3 | No hay ningún número ni intento de cálculo, **o** el número declarado es matemáticamente irreal para la arquitectura descrita — es decir, se puede recalcular con la arquitectura que el propio repo declara (cantidad de llamadas, modelo, volumen) y el resultado difiere en órdenes de magnitud del valor declarado (ej. "arquitectura multiagente con 5 LLMs por transacción" pero proyecta menos de USD 2/año con miles de corridas diarias). Penalización automática y fuerte ante esta discrepancia verificada. |
+| 4–5 | Hay un número o estimación (aunque sea vaga o "a ojo"), el orden de magnitud es plausible para la arquitectura descrita, pero no muestra la fórmula ni los supuestos (tokens promedio por corrida, volumen esperado) — no es auditable. |
 | 6–8 | Cálculo auditable (fórmula + supuestos explícitos) y el orden de magnitud es correcto para la arquitectura declarada. |
 | 9–10 | Además: contempla el caso peor (picos de uso, reintentos, contexto creciente) y da un rango, no un único número optimista. |
 
@@ -124,6 +131,15 @@ contra lo que el alumno declara.
 "frontier" con contexto de 50k tokens por corrida, uso proyectado de 10.000
 corridas/año, y estima "USD 5/año de costo total" — el cálculo real da
 órdenes de magnitud más alto. → 1–3, penalización fuerte y explícita.
+
+> **Nota de calibración (ver `calibracion.md`):** una afirmación vaga
+> ("esto cuesta unos centavos al mes") para una arquitectura simple de una
+> sola llamada por corrida **no** cae automáticamente en 1–3 solo por ser
+> vaga — el orden de magnitud ahí es plausible, y el defecto real es la
+> falta de fórmula/supuestos (4–5). El 1–3 es exclusivamente para ausencia
+> total o para una discrepancia de orden de magnitud verificable contra la
+> arquitectura declarada. Esta distinción se afinó tras una corrida de
+> calibración donde el agente puntuaba ambos casos igual de bajo.
 
 ---
 

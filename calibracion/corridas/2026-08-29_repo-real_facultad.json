@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-08-29T16:40:00Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/Facultad",
+  "nota_metodologica": "Repo real y externo (no construido para este parcial, entrega de una materia previa con otra consigna). Se usa para validar que el corrector corre sobre un repositorio real de GitHub y aplica la regla de estructura obligatoria sin excepciones, incluso ante una entrega genuina y honesta que simplemente no sigue el formato de esta rúbrica.",
+  "extraccion_real_via_github_api": {
+    "raiz_del_repo": [".gitattributes", "README.md", "english-quest-entrega/"],
+    "README.md_sha": "c0acbf1838ff7c8d565c9137d850695954c4a771",
+    "prompts/system_prompt.md": "NO ENCONTRADO",
+    "prompts/user_prompt.md": "NO ENCONTRADO",
+    "corridas/": "NO ENCONTRADO",
+    "DECISIONES.md": "NO ENCONTRADO"
+  },
+  "evaluacion": [
+    {
+      "dimension": "Sistema completo y funcionando",
+      "puntaje_asignado": "1/10",
+      "puntaje_ponderado": "3.0",
+      "justificacion": "No existe carpeta corridas/ en el repo. El README narra en prosa (\"anduvo perfecto\" no aplica aquí, pero sí describe funcionalidad en texto plano, sección 'Qué funciona') sin ningún log estructurado. Sin evidencia trazable, va a 1 por regla de formato de API real ausente."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "puntaje_asignado": "1/10",
+      "puntaje_ponderado": "2.5",
+      "justificacion": "No existe DECISIONES.md. Es irrelevante que el README contenga, en la sección 'Qué falta o qué falló', un relato honesto y detallado de un tropiezo real (falla de permisos de push a GitHub, error 403, resuelto subiendo un .zip a mano) — ese contenido está en el archivo equivocado y no puede contabilizarse para esta dimensión sin violar el criterio de evidencia por ruta exacta."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_asignado": "1/10",
+      "puntaje_ponderado": "1.5",
+      "justificacion": "Faltan prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md. Regla de Fase 1.4 aplicada: 1/10 automático."
+    },
+    {
+      "dimension": "Análisis económico",
+      "puntaje_asignado": "1/10",
+      "puntaje_ponderado": "1.5",
+      "justificacion": "El README no contiene ningún cálculo de costo ni de consumo de tokens (de hecho el proyecto declara explícitamente que no usa un LLM en runtime, sección 'Qué funciona': 'el agente decide con una política fija... no con un LLM')."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "puntaje_asignado": "4/10",
+      "puntaje_ponderado": "6.0",
+      "justificacion": "README, sección 'Qué falta o qué falló': el intento de push automático del agente fue rechazado por GitHub ('403 Resource not accessible by integration'), es decir los permisos reales eran acotados (no había escritura global disponible) y la resolución fue una acción manual humana. Permisos acotados en los hechos, pero el repo no usa ni mapea vocabulario L0-L4 en ningún lado -> banda 4-5."
+    }
+  ],
+  "nota_final_sobre_100": "14.5",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Repo real, honesto, sin ningún intento de manipular al evaluador -- pero construido para una consigna distinta (no declara prompts/, corridas/ ni DECISIONES.md porque el trabajo final de esa materia no los exigía en ese formato). La ausencia total de la estructura obligatoria hunde la nota pese a que el README es de buena calidad narrativa y honesto sobre sus propias fallas. Decisión de diseño que salva parcialmente la nota: Gobierno y riesgo, porque el propio relato del incidente de permisos de GitHub es evidencia real de que el agente no tenía privilegios de escritura global.",
+  "sugerencia_de_mejora": "Renombrar/mover el contenido de la sección 'Qué falta o qué falló' a un DECISIONES.md real, y separar cualquier prompt usado (aunque el agente no use un LLM en runtime, documentar el/los prompts usados durante la construcción) en prompts/. El contenido ya existe; solo falta la estructura exigida."
+}

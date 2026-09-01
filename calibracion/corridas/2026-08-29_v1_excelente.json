@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-08-29T17:05:00Z",
+  "repositorio_evaluado": "casos/excelente/ (dentro de este mismo repositorio, tratado como el árbol de archivos de un trabajo final)",
+  "version_rubrica": "v1 (antes de las aclaraciones de calibración)",
+  "evaluacion": [
+    {
+      "dimension": "Sistema completo y funcionando",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "27.0",
+      "justificacion": "corridas/2026-08-25-140501_run-013.json, run-014.json y run-031.json tienen estructura de API real (usage, stop_reason, ids de mensaje) y las 4 variables de prompts/user_prompt.md (CANAL, CLIENTE_ID, IDIOMA, TICKET_TEXTO) aparecen consistentes en las 3. run-014.json documenta una falla real (429 rate limit) con reintento y backoff."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "22.5",
+      "justificacion": "DECISIONES.md documenta 5 decisiones, cada una con alternativa descartada y motivo concreto medido (ej. punto 2: '39/40 correctos con few-shot, 38/40 sin few-shot... decidimos sacar los ejemplos')."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_asignado": "7/10",
+      "puntaje_ponderado": "10.5",
+      "justificacion": "Las 5 rutas obligatorias existen, README.md documenta instalación y variable de entorno ANTHROPIC_API_KEY sin secretos hardcodeados. requirements.txt usa 'anthropic>=0.40.0' (rango mínimo, no versión exacta fijada)."
+    },
+    {
+      "dimension": "Análisis económico",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "13.5",
+      "justificacion": "README.md sección 'Análisis económico': fórmula explícita, supuestos declarados (620/95 tokens medidos en las propias corridas), y rango peor/mejor caso (USD 600-815/año) en vez de un único número."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "13.5",
+      "justificacion": "DECISIONES.md punto 5 mapea correctamente L1/L2/L3-L4 a cada acción, y corridas/2026-08-26-091533_run-031.json contiene 'aprobacion_humana_requerida: true' y 'accion_humana_registrada' con responsable y timestamp -- evidencia real de control humano ejecutado, no solo declarado."
+    }
+  ],
+  "nota_final_sobre_100": "87.0",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Aprobado para pase a producción con observaciones menores. La decisión que más sostiene la nota es la trazabilidad real entre user_prompt.md y corridas/, incluyendo un caso de falla documentado -- eso es lo que separa a este caso de un trabajo que simplemente 'no tuvo errores' porque no probó lo suficiente. El techo en Formato (7, no 9-10) es por versiones mínimas (>=) en requirements.txt en vez de versiones exactas fijadas.",
+  "sugerencia_de_mejora": "Fijar versiones exactas en requirements.txt (==) para reproducibilidad determinística del entorno."
+}
