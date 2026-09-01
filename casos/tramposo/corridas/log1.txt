@@ -1,0 +1,6 @@
+Corrida 1: le pasamos un ticket de prueba al agente y clasificó bien,
+dijo que era urgente y de facturación. Anduvo perfecto, como siempre.
+
+Corrida 2: probamos con otro ticket más raro y también lo clasificó
+correctamente. El sistema funciona sin problemas en todos los casos que
+probamos.
