@@ -48,7 +48,15 @@ cálculo de costo real).
 
 ## Análisis económico
 
-- Modelo: `claude-sonnet-5`. Costo calculado sobre las 3 corridas
+- Modelo: `claude-sonnet-5`, elegido por el tamaño de la tarea: clasificar
+  y resumir un ticket corto contra un enum fijo de categorías es
+  clasificación/resumen de contexto corto sin razonamiento multi-paso, no
+  justifica el costo de un modelo mayor (Opus). No se descarta un modelo
+  más chico (Haiku) por precaución, no por medición: un ticket mal
+  clasificado deriva en mal ruteo a un humano, y no se corrió una
+  comparación empírica entre modelos para este caso de prueba — se
+  declara así en vez de inventar una comparación que no se hizo.
+- Costo calculado sobre las 3 corridas
   presentes en `corridas/` (las únicas que este repositorio puede
   verificar — no se afirma un tamaño de muestra que no está incluido):
   promedio de **250 tokens de entrada, 39 de salida** por ticket (el

@@ -228,3 +228,28 @@ fabricación, no la inventa selectivamente.
   penaliza lo que no sobrevive ser verificado.
 
 Corridas completas de esta versión en `calibracion/corridas/2026-09-01_v4_*.json`.
+
+## Ajuste posterior: ítem faltante en Análisis económico (contra el repo oficial de la materia)
+
+Al revisar `parcial.md`/`trabajo-final.md` (repositorio oficial
+`MoonquantCap/agentes-ia-ucema`) se encontró que el punto 5 de los "seis
+requisitos" del trabajo final exige explícitamente justificar la elección
+de modelo con el criterio del curso: **"el más chico que hace bien la
+tarea"**. Nuestra Dimensión 4 (Análisis económico) verificaba fórmula,
+supuestos y orden de magnitud, pero no exigía esa justificación — un
+trabajo podía sacar 10/10 en Económico con un cálculo de costo impecable
+para un modelo elegido sin ningún argumento. Se agregó como ítem 4 del checklist obligatorio 6–8 en `rubrica.md` y
+`server/data/rubric.ts` (ver commit correspondiente).
+
+Al re-verificar los 3 casos contra el ítem nuevo, `casos/excelente/`
+**no lo cumplía**: el README nombraba el modelo (`claude-sonnet-5`) y su
+costo, pero no daba ninguna razón de por qué ese modelo y no uno mayor o
+menor — exactamente el defecto que el ítem nuevo busca detectar. Se
+corrigió agregando la justificación real (tamaño de la tarea: clasificar
+un ticket corto contra un enum fijo no amerita un modelo mayor; no se
+bajó a un modelo más chico por precaución ante el costo de un error de
+ruteo, sin haber corrido una comparación empírica — declarado así en vez
+de inventar un experimento que no se hizo). `casos/flojo/` y
+`casos/tramposo/` no requirieron cambios: ya estaban por debajo de la
+banda 6–8 en Económico por otros motivos, así que el ítem nuevo no mueve
+su nota.

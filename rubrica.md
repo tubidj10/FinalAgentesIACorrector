@@ -314,13 +314,19 @@ contra lo que el alumno declara.
 3. El orden de magnitud del resultado es correcto para la arquitectura
    que el propio repo declara (recalculado independientemente por el
    corrector).
+4. Justifica la elección de modelo con el criterio explícito de la
+   materia (`trabajo-final.md`, punto 5): **el modelo más chico que
+   resuelve bien la tarea** — no "el mejor modelo disponible" ni una
+   elección sin argumento. Alcanza con una comparación mínima (por qué
+   no un modelo más grande/caro, o por qué no uno más chico/barato) con
+   una razón concreta (calidad de output, latencia, tasa de error).
 
 ### Checklist adicional — banda 9–10 (todo lo de 6–8, más esto)
 
-4. Contempla explícitamente un caso peor (picos de uso, reintentos,
+5. Contempla explícitamente un caso peor (picos de uso, reintentos,
    contexto que crece) — no solo el caso promedio/optimista.
-5. Da un **rango** (mínimo–máximo), no un único número.
-6. Si la muestra de datos real es chica (pocas corridas), lo dice
+6. Da un **rango** (mínimo–máximo), no un único número.
+7. Si la muestra de datos real es chica (pocas corridas), lo dice
    explícitamente en vez de proyectar con falsa precisión.
 
 **Formato de reporte obligatorio:** mostrar el recálculo propio del

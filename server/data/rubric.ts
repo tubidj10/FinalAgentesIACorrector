@@ -94,7 +94,8 @@ export const RUBRIC_DIMENSIONS: RubricDimension[] = [
     checklist_6_8: [
       "Muestra la fórmula de costo desagregada (tokens input, tokens output, precios del proveedor).",
       "Declara los supuestos de volumen y frecuencia de uso.",
-      "El orden de magnitud calculado es matemáticamente correcto contra los precios del modelo usado."
+      "El orden de magnitud calculado es matemáticamente correcto contra los precios del modelo usado.",
+      "Justifica la elección de modelo con el criterio de la materia: el modelo más chico que resuelve bien la tarea, no 'el mejor disponible' sin argumento."
     ],
     checklist_9_10: [
       "Proyección de costo a escala (mes/año o volumen de producción) con escenario base y peor caso.",
