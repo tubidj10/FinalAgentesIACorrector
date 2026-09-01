@@ -1,0 +1,8 @@
+{
+  "name": "El Agente Evaluador",
+  "description": "Agente de corrección y auditoría implacable para trabajos finales de Programación con Agentes de IA (MBA UCEMA), con verificación cruzada, protocolo antifraude y análisis de costos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
