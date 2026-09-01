@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-09-01T04:30:00Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA (main, commit 85c9e28, posterior a la primera corrida)",
+  "version_rubrica": "v3 (con la banda 4-6 de la Dimension 1)",
+  "nota_metodologica": "Re-evaluacion del mismo repo tras una correccion real hecha por el autor entre la primera y esta corrida. Solo lectura -- este repo no fue modificado por el corrector ni por esta sesion.",
+  "evaluacion": [
+    {
+      "dimension": "Sistema completo y funcionando",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "27.0",
+      "justificacion": "Las 3 corridas ahora son 100% automaticas (metadata.json: 'modo_generacion': 'automatico'): la llamada a la herramienta (HTTP real, reproducible con curl) Y la llamada al LLM (Gemini real, con usage_por_llamada tomado literal de la API, no estimado) corrieron de punta a punta sin intervencion humana. Las 3 variables de user_prompt.md son trazables. corrida_03 documenta una falla real de herramienta (404 servicio_no_encontrado) manejada correctamente: error_herramienta poblado, confianza baja (0.3), nivel_autonomia forzado a L1 -- exactamente el criterio de la banda 9-10 ('al menos una corrida documenta una falla real... con como se manejo')."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "25.0",
+      "justificacion": "DECISIONES.md, iteracion 5: documenta 2 errores reales con el texto exacto del error de la API (404 'model no longer available', 400 'Role function is not supported'), y compara explicitamente el resultado automatico contra el borrador manual anterior, encontrando y dejando sin esconder una divergencia real (corrida 2: sistemas_afectados incluye dependientes, no solo el servicio de la alerta; corrida 3: severidad P1 automatica vs P2 manual) en vez de 'prolijarla' para que las corridas luzcan consistentes entre si."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_asignado": "8/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "Las 5 rutas obligatorias presentes. README documenta ambos proveedores con comandos exactos. Techo en 8, no 9-10: agente/requirements.txt sigue en 'anthropic>=0.69' (rango minimo, no version exacta fijada)."
+    },
+    {
+      "dimension": "Análisis económico",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "13.5",
+      "justificacion": "Sin cambios respecto a la corrida anterior: formula auditable, supuestos declarados, proyeccion en 2 escalas de volumen. Sigue sin modelar explicitamente un peor caso con reintentos/picos."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "15.0",
+      "justificacion": "Vocabulario L0-L4 mapeado con precision, evidencia real de la politica de autonomia ejecutandose (nivel_autonomia='L1' en corrida_03 por confianza baja, ahora en una corrida 100% automatica, no asistida) -- la evidencia de gobierno paso de 'declarada y verificada una vez' a 'declarada y verificada en una ejecucion real sin intervencion humana', que es un estandar mas alto."
+    }
+  ],
+  "nota_final_sobre_100": "92.5",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Aprobado para pase a produccion. La correccion entre la primera corrida (80.5/100) y esta (92.5/100) es exactamente la que se sugirio: se cerro la brecha de Sistema completo y funcionando consiguiendo un LLM real (Gemini, ante el bloqueo organizacional de crear una ANTHROPIC_API_KEY) y corriendo el pipeline de punta a punta de verdad, documentado sin pretender que corrio con el modelo del contrato. La decision que mas distingue a esta entrega no es tecnica sino de honestidad de proceso: encontro una divergencia real entre su propio juicio manual anterior y el comportamiento del modelo automatico, y la dejo documentada como ambiguedad de contrato sin resolver en vez de forzar que las corridas parecieran consistentes entre si.",
+  "sugerencia_de_mejora": "Fijar 'anthropic==<version_exacta>' en requirements.txt (mismo hallazgo que en la primera corrida) para reproducibilidad determinista del entorno; es el unico punto que separa a esta entrega de una banda mas alta en Formato."
+}
