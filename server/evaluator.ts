@@ -4,6 +4,7 @@ import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import { ExtractedRepoData } from './github.js';
 import { RUBRIC_DIMENSIONS } from './data/rubric.js';
+import { runForensicAudit } from './forensics.js';
 
 export interface EvaluatorResult {
   log: any;
@@ -513,6 +514,8 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       : "Falta formalización en la gestión de riesgos del agente. Para subir un nivel: Clasificar cada herramienta en la escala L0–L4 y documentar qué acciones están explícitamente fuera del alcance."
   });
 
+  const forensicAudit = runForensicAudit(data);
+
   return {
     fase0: {
       afirmaciones_verificadas: [
@@ -538,8 +541,10 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
           sugerencia: 'Mantener validación estricta de schemas en la respuesta del modelo.'
         }
       ],
-      resumen: 'Código de implementación modular y alineado con los principios de gobernanza.'
-    }
+      resumen: 'Código de implementación modular y alineado con los principios de gobernanza.',
+      auditoria_forense: forensicAudit
+    },
+    auditoria_forense: forensicAudit
   };
 }
 
@@ -694,12 +699,18 @@ export function normalizeEvaluatorResult(rawParsed: any, data: ExtractedRepoData
         resumen: rawParsed.reporte_auditoria || 'Revisión completada sin anomalías críticas.'
       };
 
+  const forensicAudit = rawParsed.auditoria_forense || runForensicAudit(data);
+  if (revisionCodigo) {
+    revisionCodigo.auditoria_forense = forensicAudit;
+  }
+
   const normalizedEvaluacion = {
     ...rawParsed,
     dimensiones: normalizedDimensions,
     fase0,
     protocolo_antifraude: antifraude,
     revision_de_codigo: revisionCodigo,
+    auditoria_forense: forensicAudit,
     nota_final: finalScore,
     nota_final_sobre_100: finalScore,
     reporte_auditoria: rawParsed.reporte_auditoria || rawParsed.sugerencia_de_mejora || ''

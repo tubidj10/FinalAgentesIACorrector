@@ -33,8 +33,15 @@ async function startServer() {
       materia: 'Programación de y con Agentes de IA',
       institucion: 'MBA UCEMA · 2026 2T',
       profesor: 'Prof. Alfredo B. Roisenzvit',
-      autor: 'Martín Pérez (martin.perez@tecval.com.ar)',
-      version_rubrica: 'v5 (Checklist explícito + Fase 0 de Verificación Cruzada)',
+      equipo: [
+        { nombre: 'Martín Pérez', rol: 'Arquitectura & Integración' },
+        { nombre: 'Bianca Orlandini', rol: 'Auditoría & Casos de Prueba' },
+        { nombre: 'Silvia Alvarez', rol: 'Gobernanza & Métricas' },
+        { nombre: 'Daniel Osorio', rol: 'Evaluación Económica & Benchmarks' },
+        { nombre: 'Sofia Rodriguez', rol: 'Diseño Pedagógico & Antifraude' }
+      ],
+      autores_texto: 'Martín Pérez · Bianca Orlandini · Silvia Alvarez · Daniel Osorio · Sofia Rodriguez',
+      version_rubrica: 'v5.2 (Checklist explícito + Fase 0 de Verificación Cruzada + Auditoría Forense)',
       dimensiones: RUBRIC_DIMENSIONS.map(d => ({ id: d.id, nombre: d.nombre, peso: d.peso }))
     });
   });

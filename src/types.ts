@@ -28,10 +28,33 @@ export interface HallazgoCodigo {
   sugerencia: string;
 }
 
+export interface ForensicAuditCheck {
+  id: string;
+  nombre: string;
+  categoria: 'seguridad' | 'anti_slop' | 'robustez_prompt' | 'cadencia_git' | 'eficiencia_tokens' | 'gobernanza_l0_l4';
+  estado: 'aprobado' | 'advertencia' | 'critico';
+  puntaje_impacto: number; // e.g. 0 (sin penalidad), -5, -15
+  descripcion: string;
+  evidencia: string;
+  recomendacion: string;
+}
+
+export interface ForensicAuditSummary {
+  puntuacion_salud_tecnica: number; // 0 to 100
+  nivel_riesgo: 'BAJO' | 'MODERADO' | 'ALTO' | 'CRITICO';
+  secretos_detectados: number;
+  deteccion_slop_mock: boolean;
+  calidad_aislamiento_prompts: 'ALTA' | 'MEDIA' | 'VULNERABLE';
+  resiliencia_errores: 'ROBUSTA' | 'PARCIAL' | 'INEXISTENTE';
+  cadencia_commits: 'INCREMENTAL' | 'MODERADA' | 'COMMIT_UNICO_SOSPECHOSO';
+  controles: ForensicAuditCheck[];
+}
+
 export interface RevisionCodigo {
   archivos_analizados: string[];
   hallazgos: HallazgoCodigo[];
   resumen: string;
+  auditoria_forense?: ForensicAuditSummary;
 }
 
 export interface Fase0Verificacion {
@@ -49,6 +72,7 @@ export interface EvaluacionCompleta {
     motivos?: string[];
   };
   revision_de_codigo?: RevisionCodigo;
+  auditoria_forense?: ForensicAuditSummary;
 }
 
 export interface TransactionLog {

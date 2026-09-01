@@ -12,12 +12,14 @@ import { BatchEvaluator } from './components/BatchEvaluator';
 import { UserManagementView } from './components/UserManagementView';
 import { LoginScreen } from './components/LoginScreen';
 import { AccessPendingScreen } from './components/AccessPendingScreen';
-import { Scale, RefreshCw } from 'lucide-react';
+import { TeamCreditsModal } from './components/TeamCreditsModal';
+import { Scale, RefreshCw, Users, GraduationCap } from 'lucide-react';
 
 function AppContent() {
   const { user, isAuthorized, isAdmin, pendingRequests, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('evaluador');
   const [health, setHealth] = useState<{ has_gemini_key: boolean; has_github_token: boolean } | null>(null);
+  const [showTeamModal, setShowTeamModal] = useState(false);
 
   useEffect(() => {
     fetch('/api/health')
@@ -95,21 +97,29 @@ function AppContent() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-800/80 bg-slate-900/60 py-6 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
             <Scale className="w-4 h-4 text-indigo-400" />
-            <span className="font-semibold text-slate-200">El Agente Evaluador · Rúbrica v5</span>
+            <span className="font-semibold text-slate-200">El Agente Evaluador · Rúbrica v5.2</span>
             <span className="text-slate-600">|</span>
             <span>MBA UCEMA · Programación con Agentes de IA</span>
+            <span className="text-slate-600">|</span>
+            <span className="text-slate-400">Prof. Alfredo B. Roisenzvit</span>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <span className="text-slate-400">
-              Prof. Alfredo B. Roisenzvit · Martín Pérez
-            </span>
+          <div className="flex items-center space-x-3 text-slate-300">
+            <button
+              onClick={() => setShowTeamModal(true)}
+              className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-indigo-300 hover:text-indigo-200 transition font-medium text-[11px]"
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Equipo: Martín Pérez · Bianca Orlandini · Silvia Alvarez · Daniel Osorio · Sofia Rodriguez</span>
+            </button>
           </div>
         </div>
       </footer>
+
+      <TeamCreditsModal isOpen={showTeamModal} onClose={() => setShowTeamModal(false)} />
     </div>
   );
 }

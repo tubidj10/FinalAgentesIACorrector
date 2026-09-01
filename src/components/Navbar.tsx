@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Scale, 
   Play, 
@@ -13,10 +13,12 @@ import {
   Users, 
   LogOut, 
   Crown, 
-  User as UserIcon 
+  User as UserIcon,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SUPER_ADMIN_EMAIL } from '../lib/firebase';
+import { TeamCreditsModal } from './TeamCreditsModal';
 
 export type ActiveTab = 'evaluador' | 'batch' | 'comparador' | 'calibracion' | 'rubrica' | 'casos' | 'economia' | 'gobernanza' | 'usuarios';
 
@@ -28,6 +30,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGeminiKey }) => {
   const { user, appUser, isAdmin, isSuperAdmin, logout, pendingRequests } = useAuth();
+  const [showTeamModal, setShowTeamModal] = useState(false);
 
   const tabs = [
     { id: 'evaluador' as ActiveTab, label: 'Evaluador en Vivo', icon: Play },
@@ -75,6 +78,17 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
               <span className={`w-2 h-2 rounded-full ${hasGeminiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
               <span>{hasGeminiKey ? 'Gemini 2.5 Flash' : 'Motor Calibrado'}</span>
             </div>
+
+            {/* Team Credits Button */}
+            <button
+              id="btn-team-credits"
+              onClick={() => setShowTeamModal(true)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition"
+              title="Ver integrantes del equipo de desarrollo (MBA UCEMA)"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline">Equipo</span>
+            </button>
 
             {/* Direct Admin Quick Access Button */}
             {isAdmin && (
@@ -179,6 +193,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
           })}
         </div>
       </div>
+
+      <TeamCreditsModal isOpen={showTeamModal} onClose={() => setShowTeamModal(false)} />
     </header>
   );
 };

@@ -25,6 +25,7 @@ interface StudentFeedbackDossierProps {
     fase0?: any;
     protocolo_antifraude?: any;
     revision_de_codigo?: any;
+    auditoria_forense?: any;
     historia_git?: any;
     repo?: any;
   };
@@ -107,11 +108,37 @@ export const StudentFeedbackDossier: React.FC<StudentFeedbackDossierProps> = ({ 
       md += `\n`;
     }
 
-    md += `## 5. 🚀 Plan de Acción Inmediato (Ruta al 10)\n\n`;
+    const forensic = evaluationResult.auditoria_forense || evaluationResult.revision_de_codigo?.auditoria_forense;
+    if (forensic) {
+      md += `## 5. 🔬 Auditoría Forense y Controles de Seguridad v5.2\n\n`;
+      md += `- **Puntuación de Salud Técnica:** ${forensic.puntuacion_salud_tecnica} / 100\n`;
+      md += `- **Nivel de Riesgo Operativo:** \`${forensic.nivel_riesgo}\`\n`;
+      md += `- **Secretos Detectados:** ${forensic.secretos_detectados > 0 ? `🚨 ${forensic.secretos_detectados} detectados` : '✅ Ninguno'}\n`;
+      md += `- **Anti-Mocking / Slop:** ${forensic.deteccion_slop_mock ? '⚠️ Código Simulado' : '✅ Inferencia Real'}\n`;
+      md += `- **Aislamiento de Prompts:** ${forensic.calidad_aislamiento_prompts}\n`;
+      md += `- **Resiliencia Errores (429):** ${forensic.resiliencia_errores}\n\n`;
+
+      if (forensic.controles && forensic.controles.length > 0) {
+        md += `### Controles Forenses Específicos:\n`;
+        forensic.controles.forEach((c: any) => {
+          md += `- **[${c.estado.toUpperCase()}] ${c.nombre}**: ${c.descripcion}\n`;
+          if (c.evidencia) md += `  - *Evidencia:* ${c.evidencia}\n`;
+          if (c.recomendacion) md += `  - *Remediación:* ${c.recomendacion}\n`;
+        });
+        md += `\n`;
+      }
+    }
+
+    md += `## 6. 🚀 Plan de Acción Inmediato (Ruta al 10)\n\n`;
     const sorted = [...dimensiones].sort((a, b) => Number(a.puntaje_ponderado) - Number(b.puntaje_ponderado));
     sorted.slice(0, 3).forEach((d, i) => {
       md += `${i + 1}. **${d.dimension}**: ${d.sugerencia_concreta || 'Completar archivos y robustecer pruebas.'}\n`;
     });
+    md += `\n---\n\n`;
+    md += `### 🎓 Cátedra & Equipo Evaluador\n`;
+    md += `**Materia:** Programación de y con Agentes de IA · MBA UCEMA 2026  \n`;
+    md += `**Profesor Titular:** Alfredo B. Roisenzvit  \n`;
+    md += `**Equipo Desarrollador del Agente:** Martín Pérez, Bianca Orlandini, Silvia Alvarez, Daniel Osorio, Sofia Rodriguez.\n`;
 
     return md;
   };

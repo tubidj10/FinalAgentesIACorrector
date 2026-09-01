@@ -19,7 +19,8 @@ import { ScoreCard } from './ScoreCard';
 import { DimensionCard } from './DimensionCard';
 import { ActionPlan } from './ActionPlan';
 import { StudentFeedbackDossier } from './StudentFeedbackDossier';
-import { DimensionEvaluation, EvaluacionCompleta, TransactionLog } from '../types';
+import { ForensicAuditCard } from './ForensicAuditCard';
+import { DimensionEvaluation, EvaluacionCompleta, TransactionLog, ForensicAuditSummary } from '../types';
 
 interface LiveEvaluatorProps {
   onSelectCalibrationPreset?: (id: string) => void;
@@ -39,12 +40,13 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
     fase0?: any;
     protocolo_antifraude?: any;
     revision_de_codigo?: any;
+    auditoria_forense?: ForensicAuditSummary;
     historia_git?: any;
     log?: TransactionLog;
     repo?: any;
   } | null>(null);
 
-  const [activeTabSub, setActiveTabSub] = useState<'feedback' | 'dimensiones' | 'fase0' | 'codigo' | 'log'>('feedback');
+  const [activeTabSub, setActiveTabSub] = useState<'feedback' | 'forense' | 'dimensiones' | 'fase0' | 'codigo' | 'log'>('feedback');
   const [copiedLog, setCopiedLog] = useState(false);
 
   const presets = [
@@ -343,10 +345,10 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
           />
 
           {/* Sub-tabs Navigation */}
-          <div className="flex border-b border-slate-800 space-x-2">
+          <div className="flex border-b border-slate-800 space-x-2 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTabSub('feedback')}
-              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 ${
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 whitespace-nowrap ${
                 activeTabSub === 'feedback'
                   ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10 rounded-t-lg'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -356,8 +358,19 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
               <span>📋 Informe para el Alumno</span>
             </button>
             <button
+              onClick={() => setActiveTabSub('forense')}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 whitespace-nowrap ${
+                activeTabSub === 'forense'
+                  ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10 rounded-t-lg'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>🛡️ Auditoría Forense v5.2</span>
+            </button>
+            <button
               onClick={() => setActiveTabSub('dimensiones')}
-              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
                 activeTabSub === 'dimensiones'
                   ? 'border-indigo-500 text-indigo-400'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -367,7 +380,7 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
             </button>
             <button
               onClick={() => setActiveTabSub('fase0')}
-              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
                 activeTabSub === 'fase0'
                   ? 'border-indigo-500 text-indigo-400'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -377,7 +390,7 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
             </button>
             <button
               onClick={() => setActiveTabSub('codigo')}
-              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
                 activeTabSub === 'codigo'
                   ? 'border-indigo-500 text-indigo-400'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -387,7 +400,7 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
             </button>
             <button
               onClick={() => setActiveTabSub('log')}
-              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
                 activeTabSub === 'log'
                   ? 'border-indigo-500 text-indigo-400'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -400,6 +413,13 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
           {/* Tab 0: Student Feedback Dossier */}
           {activeTabSub === 'feedback' && (
             <StudentFeedbackDossier evaluationResult={evaluationResult} />
+          )}
+
+          {/* Tab 0.5: Forensic Audit Card */}
+          {activeTabSub === 'forense' && (
+            <ForensicAuditCard 
+              forensicAudit={evaluationResult.auditoria_forense || evaluationResult.revision_de_codigo?.auditoria_forense} 
+            />
           )}
 
           {/* Tab 1: Dimensions Cards */}
