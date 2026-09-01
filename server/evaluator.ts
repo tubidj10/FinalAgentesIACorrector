@@ -132,17 +132,22 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     corridas.some(c => /sub_agent|agent_id|herramienta|tool_calls|llamadas_herramienta/i.test(c.contenido));
   const hasActiveContradiction = claimsMultiAgent && !hasMultiAgentCodeOrTraces && corridas.length > 0 && !corridas.some(c => c.contenido.includes('request') || c.contenido.includes('messages'));
 
-  // 5. Dependency Pinning Inconsistency (e.g. requirements.txt vs requirements.lock contradiction)
-  const reqTxt = data.archivos_codigo.find(c => c.ruta.endsWith('requirements.txt'))?.contenido || '';
-  const reqLock = data.archivos_codigo.find(c => c.ruta.endsWith('requirements.lock'))?.contenido || '';
+  // 5. Dependency Pinning Inconsistency & Deprecated Model Detection
+  const reqTxt = data.archivos_codigo.find(c => c.ruta.toLowerCase().includes('requirements.txt'))?.contenido || '';
+  const reqLock = data.archivos_codigo.find(c => c.ruta.toLowerCase().includes('requirements.lock'))?.contenido || '';
   let dependencyInconsistency = '';
   if (reqTxt && reqLock) {
     const txtAnthropic = reqTxt.match(/anthropic==([0-9.]+)/i)?.[1];
     const lockAnthropic = reqLock.match(/anthropic==([0-9.]+)/i)?.[1];
     if (txtAnthropic && lockAnthropic && txtAnthropic !== lockAnthropic) {
-      dependencyInconsistency = `Inconsistencia en dependencias fijadas: requirements.txt fija anthropic==${txtAnthropic} pero requirements.lock fija anthropic==${lockAnthropic}`;
+      dependencyInconsistency = `Discordancia de versión fijada: requirements.txt declara anthropic==${txtAnthropic} pero requirements.lock declara anthropic==${lockAnthropic}`;
     }
   }
+
+  const allRepoCodeText = data.archivos_codigo.map(c => `${c.ruta}\n${c.contenido}`).join('\n');
+  const deprecatedModelMatch = allRepoCodeText.match(/(?:gemini-3\.6-flash|gemini-3-flash|gemini-2\.0-flash|gemini-1\.5-flash)/i);
+  const hasDeprecatedModelRef = Boolean(deprecatedModelMatch);
+  const deprecatedModelName = deprecatedModelMatch ? deprecatedModelMatch[0] : '';
 
   const fraudTriggered = hasHtmlInjection || hasZeroWidthOrRtl || hasDelimiterTampering || hasImperativeOverride || hasActiveContradiction;
   const fraudReasons: string[] = [];
@@ -233,6 +238,9 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     return (txt.includes('reintento') || txt.includes('retry') || txt.includes('intento_') || txt.includes('intentos') || txt.includes('status": 429') || txt.includes('error_controlado') || txt.includes('status": 503') || txt.includes('status": "error_manejado"'));
   });
 
+  const hasBackoffWithJitter = /exponential_backoff|backoff|jitter|reintento_exponencial|retries_with_backoff|circuit_breaker/i.test(allRepoCodeText);
+  const hasLoopBreakerOrTokenBudget = /max_tokens|max_output_tokens|max_iter|max_turns|max_llamadas|limite_iteraciones|max_depth/i.test(allRepoCodeText);
+
   let d1Score = 1;
   let d1Checklist: any[] = [];
 
@@ -242,28 +250,40 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: false, evidencia: "Logs sin variables trazables." },
       { item: "Logs con estructura de API real (request, response, usage, timestamp)", cumple: hasRealJsonLogs, evidencia: hasRealJsonLogs ? "JSON parseable" : "Texto plano o log incompleto" },
       { item: "Usage/tokens plausibles", cumple: false, evidencia: "Sin declaración fidedigna de usage." },
-      { item: "Al menos una corrida de camino feliz", cumple: corridas.length > 0, evidencia: corridas.length > 0 ? "Existe log registrado" : "Sin corridas" }
+      { item: "Al menos una corrida de camino feliz", cumple: corridas.length > 0, evidencia: corridas.length > 0 ? "Existe log registrado" : "Sin corridas" },
+      { item: "Manejo de fallas con Backoff Exponencial y Jitter", cumple: false, evidencia: "Sin implementación de resiliencia ante 429/503." }
     ];
   } else if (hasHandledError && (hasExplicitRetriesOrTrace || corridas.length >= 3)) {
-    // Meets 100% of 9-10 checklist
-    d1Score = 10;
-    d1Checklist = [
-      { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: true, evidencia: "Variables cruzadas correctamente con corridas/." },
-      { item: "Logs con estructura de API real", cumple: true, evidencia: "JSON transaccional con request, response, usage y metadata de herramientas." },
-      { item: "Usage/tokens plausibles", cumple: true, evidencia: "Ratio caracteres/token coherente (~3.5 chars/token)." },
-      { item: "Al menos una corrida de camino feliz", cumple: true, evidencia: "Corrida de camino feliz ejecutada con éxito." },
-      { item: "Al menos una corrida documenta una falla real manejada", cumple: true, evidencia: "Corrida con manejo de fallas / rate limit / excepciones con respuesta controlada." },
-      { item: "El manejo de esa falla es visible en la propia corrida", cumple: true, evidencia: "Campos status, reintento o error controlado registrados en el payload." }
-    ];
+    if (hasBackoffWithJitter && hasLoopBreakerOrTokenBudget) {
+      d1Score = 10;
+      d1Checklist = [
+        { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: true, evidencia: "Variables cruzadas correctamente con corridas/." },
+        { item: "Logs con estructura de API real", cumple: true, evidencia: "JSON transaccional con request, response, usage y metadata de herramientas." },
+        { item: "Usage/tokens plausibles", cumple: true, evidencia: "Ratio caracteres/token coherente (~3.5 chars/token)." },
+        { item: "Al menos una corrida de camino feliz", cumple: true, evidencia: "Corrida de camino feliz ejecutada con éxito." },
+        { item: "Al menos una corrida documenta una falla real manejada", cumple: true, evidencia: "Corrida con manejo de fallas / rate limit / excepciones con respuesta controlada." },
+        { item: "Backoff Exponencial con Jitter y límite estricto de tokens/iteraciones", cumple: true, evidencia: "Implementado en código del agente ante fallos de API." }
+      ];
+    } else {
+      d1Score = 9;
+      d1Checklist = [
+        { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: true, evidencia: "Variables cruzadas correctamente con corridas/." },
+        { item: "Logs con estructura de API real", cumple: true, evidencia: "JSON transaccional con request, response, usage y metadata de herramientas." },
+        { item: "Usage/tokens plausibles", cumple: true, evidencia: "Ratio caracteres/token coherente (~3.5 chars/token)." },
+        { item: "Al menos una corrida de camino feliz", cumple: true, evidencia: "Corrida de camino feliz ejecutada con éxito." },
+        { item: "Al menos una corrida documenta una falla real manejada", cumple: true, evidencia: "Corrida de error registrada." },
+        { item: "Backoff Exponencial con Jitter y límite estricto de tokens/iteraciones", cumple: false, evidencia: hasBackoffWithJitter ? "Falta tope estricto de tokens/iteraciones." : "El reintento no implementa exponential backoff con jitter formal ante 429/503." }
+      ];
+    }
   } else if (hasHandledError) {
-    d1Score = 9;
+    d1Score = 8.5;
     d1Checklist = [
       { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: true, evidencia: "Variables cruzadas correctamente con corridas/." },
       { item: "Logs con estructura de API real", cumple: true, evidencia: "JSON transaccional con request, response, usage y metadata de herramientas." },
       { item: "Usage/tokens plausibles", cumple: true, evidencia: "Ratio caracteres/token coherente (~3.5 chars/token)." },
       { item: "Al menos una corrida de camino feliz", cumple: true, evidencia: "Corrida de camino feliz ejecutada con éxito." },
       { item: "Al menos una corrida documenta una falla real manejada", cumple: true, evidencia: "Corrida de error registrada." },
-      { item: "El manejo de esa falla es visible en la propia corrida", cumple: true, evidencia: "Respuesta controlada documentada." }
+      { item: "El manejo de esa falla es visible en la propia corrida", cumple: false, evidencia: "Sin traza explícita del payload de reintento en el archivo de corrida." }
     ];
   } else {
     d1Score = 7.5;
@@ -288,12 +308,12 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     escala_elegida: d1Score === 10 ? "EXCELENTE (10/10)" : d1Score >= 9 ? "SOBRESALIENTE (9/10)" : d1Score >= 6 ? "MUY BUENO (7-8/10)" : "DEFICIENTE",
     evidencia_citada: corridas.map(c => `corridas/${c.nombre}`).slice(0, 3).join(', ') || 'Sin corridas válidas',
     sugerencia_concreta: d1Score === 10 
-      ? "Nivel máximo alcanzado (10/10): Todos los ítems de API real, trazabilidad y fallas manejadas verificados."
-      : "Para asegurar 10/10: Asegurar que en corridas/ haya al menos 1 corrida con falla controlada (ej: 429 rate limit o servicio no encontrado) con el payload mostrando el reintento exitoso o fallback.",
+      ? "Nivel máximo alcanzado (10/10): Todos los ítems de API real, trazabilidad, fallas manejadas y resiliencia verificados."
+      : "Para subir a 10/10: Implementar en el código del runner un reintento con Exponential Backoff y Jitter ante 429/503 y un guard de límite de iteraciones/tokens máximos.",
     justificacion: d1Score >= 9.5
-      ? "Ejecución impecable (10/10): logs con estructura de API real, trazabilidad completa de variables y evidencia documental de fallas manejadas con respuesta controlada y reintentos visibles en corridas/. Cumple el checklist completo de 9–10."
+      ? "Ejecución impecable (10/10): logs con estructura de API real, trazabilidad completa de variables, evidencia de fallas manejadas y resiliencia ante 429 con backoff exponencial. Cumple el checklist completo de 9–10."
       : d1Score >= 9
-      ? "Ejecución sobresaliente (9/10): logs con estructura de API real y trazabilidad de variables. Para subir a 10/10: Documentar en corridas/ el log de reintento explícito o fallback ante rate limit."
+      ? "Ejecución sobresaliente (9/10): logs transaccionales con estructura de API real y prueba de fallas manejadas. Para subir a 10/10: Formalizar en el código del agente un algoritmo de Exponential Backoff con Jitter ante Rate Limits (429/503)."
       : d1Score >= 6
       ? "Cumple el checklist de 6–8 con logs de API reales y camino feliz verificado. Para subir un nivel: Documentar al menos una corrida de falla manejada (p. ej. error 429 o rechazo de validación de schema) con el reintento registrado en el JSON de corridas/."
       : "Logs incompletos o superficiales que no permiten verificar la trazabilidad de variables de entrada. Para subir un nivel: Generar logs con formato transaccional JSON (request, response, usage, timestamp) para cada variable declarada."
@@ -307,7 +327,9 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   );
   const hasDiscardedAlternatives = /descart|alternativa|en vez de|probamos primero|opción rechazada|rechaz/i.test(decisiones);
   const hasRealTroubles = /tropiezo|error|falla|romp|problema|dificultad|obstáculo|límite/i.test(decisiones);
-  const hasCommitOrMetricEvidence = /commit|[0-9a-f]{7,40}|ms|latencia|tokens|costo|precisión|evaluación|benchmark/i.test(decisiones);
+  const hasCommitHashes = /[0-9a-f]{7,40}\b/i.test(decisiones);
+  const metricOccurrences = (decisiones.match(/\b(?:\d+(?:\.\d+)?\s*(?:ms|segundos|tokens|USD|\$|%|f1|chars))\b/gi) || []).length;
+  const hasQuantitativeMetrics = metricOccurrences >= 3;
 
   let d2Score = 1;
   let d2Checklist: any[] = [];
@@ -319,26 +341,28 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Dice cómo se resolvió", cumple: false, evidencia: "Sin relato de resolución." },
       { item: "Al menos 2 decisiones de diseño", cumple: false, evidencia: "Sin decisiones documentadas." }
     ];
-  } else if (hasMultipleDecisions && hasDiscardedAlternatives && hasRealTroubles && hasCommitOrMetricEvidence) {
-    d2Score = 10;
-    d2Checklist = [
-      { item: "Al menos un tropiezo real documentado", cumple: true, evidencia: "Documenta tropiezos con validación de categorías, límites y modelos." },
-      { item: "Dice cómo se resolvió", cumple: true, evidencia: "Implementación de validación estricta, truncado de hilos y guardas de contexto." },
-      { item: "Más de 2 decisiones de diseño con este detalle", cumple: true, evidencia: "Múltiples iteraciones técnicas desglosadas con detalle metodológico." },
-      { item: "Cada una nombra la alternativa descartada", cumple: true, evidencia: "Detalla alternativas como few-shot y respuesta automática al cliente." },
-      { item: "Motivo técnico concreto", cumple: true, evidencia: "Justifica decisiones con métricas de tokens y latencia." },
-      { item: "Verificable contra la historia real del repo", cumple: true, evidencia: "Trazable con la evolución del código y las corridas." }
-    ];
   } else if (hasMultipleDecisions && hasDiscardedAlternatives && hasRealTroubles) {
-    d2Score = 9;
-    d2Checklist = [
-      { item: "Al menos un tropiezo real documentado", cumple: true, evidencia: "Documenta tropiezos técnicos." },
-      { item: "Dice cómo se resolvió", cumple: true, evidencia: "Solución implementada documentada." },
-      { item: "Más de 2 decisiones de diseño con este detalle", cumple: true, evidencia: "Múltiples iteraciones técnicas." },
-      { item: "Cada una nombra la alternativa descartada", cumple: true, evidencia: "Nombra opciones descartadas." },
-      { item: "Motivo técnico concreto", cumple: true, evidencia: "Motivos descritos." },
-      { item: "Verificable contra la historia real del repo", cumple: true, evidencia: "Trazable." }
-    ];
+    if (hasCommitHashes && hasQuantitativeMetrics) {
+      d2Score = 10;
+      d2Checklist = [
+        { item: "Al menos un tropiezo real documentado", cumple: true, evidencia: "Documenta tropiezos con validación de categorías, límites y modelos." },
+        { item: "Dice cómo se resolvió", cumple: true, evidencia: "Implementación de validación estricta, truncado de hilos y guardas de contexto." },
+        { item: "Más de 2 decisiones de diseño con este detalle", cumple: true, evidencia: "Múltiples iteraciones técnicas desglosadas con detalle metodológico." },
+        { item: "Cada una nombra la alternativa descartada", cumple: true, evidencia: "Detalla alternativas como few-shot y respuesta automática al cliente." },
+        { item: "Motivo técnico concreto con métricas", cumple: true, evidencia: "Justifica decisiones con métricas cuantitativas." },
+        { item: "Trazabilidad con commits/historia del repo", cumple: true, evidencia: "Commits y evolución trazables en DECISIONES.md." }
+      ];
+    } else {
+      d2Score = 9.5;
+      d2Checklist = [
+        { item: "Al menos un tropiezo real documentado", cumple: true, evidencia: "Documenta tropiezos técnicos reales." },
+        { item: "Dice cómo se resolvió", cumple: true, evidencia: "Solución implementada documentada." },
+        { item: "Más de 2 decisiones de diseño con este detalle", cumple: true, evidencia: "Múltiples iteraciones técnicas profundas." },
+        { item: "Cada una nombra la alternativa descartada", cumple: true, evidencia: "Nombra y analiza alternativas descartadas." },
+        { item: "Motivo técnico concreto", cumple: true, evidencia: "Fundamentación técnica presente." },
+        { item: "Trazabilidad explícita con hashes de Git", cumple: false, evidencia: hasCommitHashes ? "Métricas generales sin correlación a cada commit." : "Faltan enlaces directos a hashes de commit específicos (SHA) para cada iteración." }
+      ];
+    }
   } else if (hasRealTroubles || hasDiscardedAlternatives) {
     d2Score = 5;
     d2Checklist = [
@@ -363,15 +387,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d2Checklist,
     puntaje_asignado: `${d2Score}/10`,
     puntaje_ponderado: d2Pond.toFixed(1),
-    escala_elegida: d2Score === 10 ? "EXCELENTE (10/10)" : d2Score >= 9 ? "SOBRESALIENTE (9/10)" : d2Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
-    evidencia_citada: "DECISIONES.md con iteraciones técnicas y alternativas descartadas",
+    escala_elegida: d2Score === 10 ? "EXCELENTE (10/10)" : d2Score >= 9 ? "SOBRESALIENTE (9.5/10)" : d2Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
+    evidencia_citada: "DECISIONES.md con iteraciones técnicas, tropiezos y alternativas descartadas",
     sugerencia_concreta: d2Score === 10
-      ? "Nivel máximo alcanzado (10/10): Registro de decisiones de diseño con alternativas descartadas y sustento cuantitativo impecable."
-      : "Para asegurar 10/10: En DECISIONES.md nombrar explícitamente 3 iteraciones/decisiones, indicando para cada una la opción descartada puntual y la justificación métrica (latencia, costo o precisión).",
-    justificacion: d2Score >= 9.5
-      ? "Registro honesto y profundo de decisiones de diseño con alternativas explícitamente descartadas, tropiezos reales y fundamentación técnica cuantitativa. Cumple el checklist completo de 9–10."
+      ? "Nivel máximo alcanzado (10/10): Registro de decisiones con alternativas descartadas, sustento métrico y trazabilidad Git impecable."
+      : "Para alcanzar 10/10 perfecto: Enlazar cada iteración en DECISIONES.md con el hash SHA exacto de su commit en Git y una métrica diferencial (latencia o tokens antes vs después).",
+    justificacion: d2Score >= 9.8
+      ? "Registro honesto y profundo de decisiones de diseño con alternativas explícitamente descartadas, tropiezos reales y hashes de Git verificables. Cumple el checklist completo de 9–10."
       : d2Score >= 9
-      ? "Registro sólido de decisiones. Para subir a 10/10: Enlazar cada decisión con commits o comparativas de latencia/tokens."
+      ? "Registro sobresaliente de decisiones (9.5/10) con análisis riguroso de alternativas descartadas. Para subir a 10/10: Vincular cada iteración con su commit hash (SHA) específico y la métrica de mejora cuantitativa."
       : d2Score >= 5
       ? "Documentación válida pero con pocas alternativas descartadas analizadas. Para subir un nivel: Detallar en DECISIONES.md al menos 3 decisiones de diseño con la alternativa descartada y el motivo cuantitativo de su descarte."
       : "DECISIONES.md insuficiente o sin relato de tropiezos reales. Para subir un nivel: Agregar tropiezos reales encontrados durante el desarrollo y cómo cambiaron el diseño del agente."
@@ -392,7 +416,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     const hasExactDeps = /==/.test(repoAllContent) || /"dependencies"/.test(repoAllContent) || data.archivos_codigo.some(c => c.ruta.includes('requirements.txt'));
     const hasSingleStepScript = /correr|run|ejecutar|npm start|python3|\.sh\b/i.test(readme) || data.archivos_codigo.some(c => c.ruta.endsWith('.sh'));
 
-    if (hasExactDeps && hasSingleStepScript && !dependencyInconsistency) {
+    if (hasExactDeps && hasSingleStepScript && !dependencyInconsistency && !hasDeprecatedModelRef) {
       d3Score = 10;
       d3Checklist = [
         { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias verificadas." },
@@ -401,17 +425,22 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { item: "Variables de entorno nombradas por su nombre exacto", cumple: true, evidencia: "Variables declaradas sin secretos en texto plano." },
         { item: "Sin rutas absolutas dependientes de una máquina", cumple: true, evidencia: "Rutas relativas verificadas." },
         { item: "Dependencias con versión exactamente fijada y coherente", cumple: true, evidencia: "Versiones fijadas con precisión sin discordancias en lockfiles." },
+        { item: "Modelos LLM declarados son válidos y vigentes", cumple: true, evidencia: "Modelos activos sin referencias obsoletas." },
         { item: "Mecanismo de reproducción de un solo paso", cumple: true, evidencia: "Flujo automatizado reproducible con script de ejecución." }
       ];
-    } else if (hasExactDeps && hasSingleStepScript && dependencyInconsistency) {
+    } else if (hasExactDeps && hasSingleStepScript && (dependencyInconsistency || hasDeprecatedModelRef)) {
       d3Score = 8;
+      const issues: string[] = [];
+      if (dependencyInconsistency) issues.push(dependencyInconsistency);
+      if (hasDeprecatedModelRef) issues.push(`Referencia a modelo no vigente o deprecado: '${deprecatedModelName}' en código/config`);
+
       d3Checklist = [
         { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias presentes." },
         { item: "Instalación documentada", cumple: true, evidencia: "Comandos de instalación claros." },
         { item: "Ejecución documentada", cumple: true, evidencia: "Script ejecutable presente." },
         { item: "Variables de entorno nombradas", cumple: true, evidencia: "Nombres de variables expuestos correctamente." },
         { item: "Sin rutas absolutas locales", cumple: true, evidencia: "Rutas relativas verificadas." },
-        { item: "Dependencias con versión exactamente fijada y coherente", cumple: false, evidencia: dependencyInconsistency },
+        { item: "Dependencias con versión coherente y modelos vigentes", cumple: false, evidencia: issues.join(' | ') },
         { item: "Mecanismo de reproducción de un solo paso", cumple: true, evidencia: "Reproducible en un solo paso." }
       ];
     } else {
@@ -437,16 +466,18 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     puntaje_asignado: `${d3Score}/10`,
     puntaje_ponderado: d3Pond.toFixed(1),
     escala_elegida: d3Score === 10 ? "EXCELENTE (10/10)" : d3Score >= 8 ? "SOBRESALIENTE (8/10)" : d3Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
-    evidencia_citada: dependencyInconsistency ? `Alerta: ${dependencyInconsistency}` : "5 rutas obligatorias presentes en la raíz, requirements con versiones fijadas y comandos de un solo paso en README.md",
+    evidencia_citada: (dependencyInconsistency || hasDeprecatedModelRef) 
+      ? `Alerta: ${[dependencyInconsistency, hasDeprecatedModelRef ? `Modelo no vigente '${deprecatedModelName}'` : ''].filter(Boolean).join('; ')}` 
+      : "5 rutas obligatorias presentes en la raíz, dependencias fijadas y script reproducible",
     sugerencia_concreta: d3Score === 10
       ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas y coherentes."
-      : dependencyInconsistency
-      ? "Para subir a 10/10: Corregir la discordancia entre requirements.txt y requirements.lock sincronizando la versión fijada de la librería."
+      : (dependencyInconsistency || hasDeprecatedModelRef)
+      ? "Para subir a 10/10: Sincronizar las versiones fijadas en requirements.txt y requirements.lock (ej: anthropic), y reemplazar modelos obsoletos por versiones vigentes (ej: gemini-3.7-flash)."
       : "Para subir a 10/10: Fijar dependencias exactas con '==' en requirements.txt y documentar un comando único de ejecución sin pasos manuales externos.",
     justificacion: d3Score === 1
       ? `Penalización automática de 1/10 por falta de rutas obligatorias en la raíz: ${missingFiles.join(', ')}. Para subir un nivel: Asegurar que existan README.md, prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md en la raíz.`
-      : dependencyInconsistency
-      ? `Estructura y scripts correctos, pero se detectó: ${dependencyInconsistency}. Sincronizar lockfile y manifest para alcanzar 10/10.`
+      : (dependencyInconsistency || hasDeprecatedModelRef)
+      ? `Estructura y scripts correctos, pero se detectó: ${[dependencyInconsistency, hasDeprecatedModelRef ? `referencia a modelo no vigente '${deprecatedModelName}'` : ''].filter(Boolean).join(' y ')}. Corregir para alcanzar 10/10.`
       : d3Score >= 9.5
       ? "Estructura impecable (10/10) con las 5 rutas en la raíz, dependencias fijadas y comandos de ejecución sin secretos expuestos. Cumple el checklist completo de 9–10."
       : "Cumple las 5 rutas y la guía de instalación. Para subir un nivel: Fijar versiones exactas con '==' en dependencias y proveer un script de ejecución en un solo paso."
@@ -456,7 +487,8 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const hasFormula = /\b(\$|USD|tokens?|1e6|\d+\.\d+)\b/i.test(readme) && /(\*|\+|\/|por llamada|por corrida|por ticket)/i.test(readme);
   const hasProjections = /peor caso|escenario|proyecci|mensual|anual|30 trabajos|escala/i.test(readme);
   const hasTokenCounts = /(\d+[\s,.]\d+|\d+)\s*(tokens?|caracteres)/i.test(readme);
-  const hasCacheOrOptimization = /caché|cache|prompt caching|optimizaci|lote|batch/i.test(readme);
+  const hasPromptCachingSensitivity = /cach[eé]\s+sensitivity|amortizaci[oó]n|sin\s+cache.*con\s+cache|con\s+prompt\s+caching|ahorro\s+por\s+cache|curva\s+de\s+costo/i.test(readme);
+  const hasPeakLoadSLO = /pico|p95|p99|latencia.*costo|slo|concurren/i.test(readme);
 
   let d4Score = 1;
   let d4Checklist: any[] = [];
@@ -469,14 +501,25 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Orden de magnitud matemáticamente correcto", cumple: false, evidencia: "Sin números para auditar." }
     ];
   } else if (hasFormula && hasProjections && hasTokenCounts) {
-    d4Score = 10;
-    d4Checklist = [
-      { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
-      { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
-      { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
-      { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios múltiples." },
-      { item: "Análisis de optimizaciones de costo", cumple: true, evidencia: "Evaluación de prompt caching y truncado de contexto." }
-    ];
+    if (hasPromptCachingSensitivity || hasPeakLoadSLO) {
+      d4Score = 10;
+      d4Checklist = [
+        { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
+        { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
+        { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
+        { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios múltiples." },
+        { item: "Análisis de optimizaciones y amortización de Prompt Caching / SLO", cumple: true, evidencia: "Evaluación formal de caching y curvas de escala." }
+      ];
+    } else {
+      d4Score = 9.5;
+      d4Checklist = [
+        { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
+        { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
+        { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
+        { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios base vs peor caso." },
+        { item: "Matriz de sensibilidad de Prompt Caching / Curva SLO de latencia", cumple: false, evidencia: "Falta tabla comparativa de costo con vs sin Prompt Caching o impacto de picos en SLO." }
+      ];
+    }
   } else if (hasFormula || hasTokenCounts) {
     d4Score = 5;
     d4Checklist = [
@@ -494,13 +537,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d4Checklist,
     puntaje_asignado: `${d4Score}/10`,
     puntaje_ponderado: d4Pond.toFixed(1),
-    escala_elegida: d4Score === 10 ? "EXCELENTE (10/10)" : d4Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
+    escala_elegida: d4Score === 10 ? "EXCELENTE (10/10)" : d4Score >= 9 ? "SOBRESALIENTE (9.5/10)" : d4Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
     evidencia_citada: "README.md con desglose matemático de tokens input/output, supuestos de volumen y peor caso",
     sugerencia_concreta: d4Score === 10
-      ? "Nivel máximo alcanzado (10/10): Fórmula desagregada por llamada, supuestos de tokens y escenarios base vs peor caso auditados."
-      : "Para subir a 10/10: Incluir en README.md la fórmula exacta: Costo = (Tokens_in × Tarifa_in) + (Tokens_out × Tarifa_out), definiendo supuestos de volumen diario y una proyección de peor caso (reintentos o picos).",
-    justificacion: d4Score >= 9.5
-      ? "Análisis económico riguroso (10/10) con desglose de tokens input/output, precios unitarios oficiales, escenarios base y peor caso, y análisis de optimizaciones. Cumple el checklist completo de 9–10."
+      ? "Nivel máximo alcanzado (10/10): Fórmula desagregada por llamada, supuestos de tokens, peor caso y análisis de prompt caching auditados."
+      : "Para alcanzar 10/10 perfecto: Agregar una matriz de sensibilidad comparando el costo con vs sin Prompt Caching (context caching) y el impacto financiero de picos de carga sobre el SLO.",
+    justificacion: d4Score >= 9.8
+      ? "Análisis económico riguroso (10/10) con desglose de tokens input/output, precios unitarios oficiales, escenarios base y peor caso, y matriz de prompt caching. Cumple el checklist completo de 9–10."
+      : d4Score >= 9
+      ? "Análisis económico sobresaliente (9.5/10) con fórmula desagregada y escenario de peor caso. Para subir a 10/10: Modelar la sensibilidad de ahorro con Prompt Caching en el system prompt."
       : d4Score >= 5
       ? "Cálculo económico presente pero sin desglose formal de supuestos ni proyecciones de escala. Para subir un nivel: Agregar fórmula desagregada (tokens in × precio + tokens out × precio) y proyección con escenario base y peor caso."
       : "Ausencia de análisis económico fundamentado. Para subir un nivel: Incluir en README.md la fórmula matemática de costo por corrida con supuestos de volumen explícitos."
@@ -510,19 +555,31 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const hasL0L4 = /L0|L1|L2|L3|L4/i.test(repoAllContent);
   const hasLimits = /qué no hace|alcance descartado|no responde|no escribe|no ejecuta/i.test(repoAllContent);
   const hasHumanInLoop = /human-in-the-loop|aprobación humana|revisión humana/i.test(repoAllContent);
+  const hasStrictOutputValidation = /(?:BaseModel|pydantic|zod|response_schema|validate_schema|schema_validator|json_schema)/i.test(allRepoCodeText);
 
   let d5Score = 4;
   let d5Checklist: any[] = [];
 
   if (hasL0L4 && hasLimits && hasHumanInLoop) {
-    d5Score = 10;
-    d5Checklist = [
-      { item: "Cada herramienta/acción clasificada explícitamente L0–L4", cumple: true, evidencia: "Matriz de herramientas con niveles L0–L4 completa." },
-      { item: "Define explícitamente qué NO hace el agente", cumple: true, evidencia: "Sección de alcance negativo y límites claros." },
-      { item: "Identifica al menos 2 riesgos concretos y mitigaciones", cumple: true, evidencia: "Riesgos de inyección y fallas analizados con mitigación." },
-      { item: "Human-in-the-loop para acciones L2+", cumple: true, evidencia: "Acciones de comunicación/riesgo reservadas a humanos." },
-      { item: "Análisis de prompt injection y contención de datos", cumple: true, evidencia: "Aislamiento estricto de prompts implementado." }
-    ];
+    if (hasStrictOutputValidation) {
+      d5Score = 10;
+      d5Checklist = [
+        { item: "Cada herramienta/acción clasificada explícitamente L0–L4", cumple: true, evidencia: "Matriz de herramientas con niveles L0–L4 completa." },
+        { item: "Define explícitamente qué NO hace el agente", cumple: true, evidencia: "Sección de alcance negativo y límites claros." },
+        { item: "Identifica al menos 2 riesgos concretos y mitigaciones", cumple: true, evidencia: "Riesgos de inyección y fallas analizados con mitigación." },
+        { item: "Human-in-the-loop para acciones L2+", cumple: true, evidencia: "Acciones de comunicación/riesgo reservadas a humanos." },
+        { item: "Validación formal de salida con Pydantic/Zod/JSONSchema", cumple: true, evidencia: "Schema validado con modelo tipado estricto." }
+      ];
+    } else {
+      d5Score = 9;
+      d5Checklist = [
+        { item: "Cada herramienta/acción clasificada explícitamente L0–L4", cumple: true, evidencia: "Matriz de herramientas con niveles L0–L4 completa." },
+        { item: "Define explícitamente qué NO hace el agente", cumple: true, evidencia: "Sección de alcance negativo y límites claros." },
+        { item: "Identifica al menos 2 riesgos concretos y mitigaciones", cumple: true, evidencia: "Riesgos de inyección y fallas analizados con mitigación." },
+        { item: "Human-in-the-loop para acciones L2+", cumple: true, evidencia: "Acciones de comunicación/riesgo reservadas a humanos." },
+        { item: "Validación formal de salida con Pydantic/Zod/JSONSchema", cumple: false, evidencia: "El agente procesa el JSON sin validación de schema estructurada con Pydantic/Zod en código." }
+      ];
+    }
   } else if (hasL0L4 || hasLimits) {
     d5Score = 7;
     d5Checklist = [
@@ -549,13 +606,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d5Checklist,
     puntaje_asignado: `${d5Score}/10`,
     puntaje_ponderado: d5Pond.toFixed(1),
-    escala_elegida: d5Score === 10 ? "EXCELENTE (10/10)" : d5Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
+    escala_elegida: d5Score === 10 ? "EXCELENTE (10/10)" : d5Score >= 9 ? "SOBRESALIENTE (9/10)" : d5Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
     evidencia_citada: "Matriz de autonomía L0-L4, alcance negativo explícito y salvaguardas Human-in-the-Loop",
     sugerencia_concreta: d5Score === 10
-      ? "Nivel máximo alcanzado (10/10): Tabla L0–L4 completa, límites negativos de qué NO hace el agente y human-in-the-loop implementado."
-      : "Para subir a 10/10: Añadir tabla clasificando cada acción en L0–L4 (lecturas en L1, acciones críticas en L2 con aprobación humana obligatoria) y sección de límites explícitos.",
+      ? "Nivel máximo alcanzado (10/10): Tabla L0–L4 completa, límites negativos y validación de schema Pydantic/Zod verificada."
+      : "Para subir a 10/10: Implementar un validador de schema estricto (Pydantic BaseModel o Zod) en la frontera de salida del agente antes de guardar el JSON.",
     justificacion: d5Score >= 9.5
-      ? "Gobierno integral (10/10) con clasificación L0–L4 de herramientas, límites estrictos de alcance, mitigaciones de inyección y human-in-the-loop para acciones de riesgo. Cumple el checklist completo de 9–10."
+      ? "Gobierno integral (10/10) con clasificación L0–L4 de herramientas, límites estrictos de alcance, mitigaciones de inyección, human-in-the-loop y validación tipada con Pydantic/Zod. Cumple el checklist completo de 9–10."
+      : d5Score >= 9
+      ? "Gobierno sobresaliente (9/10) con matriz L0–L4 y HITL. Para subir a 10/10: Implementar validación formal de schema con Pydantic o Zod para evitar alucinaciones estructurales en tiempo de ejecución."
       : d5Score >= 6
       ? "Gobierno adecuado con delimitación de alcance. Para subir un nivel: Incorporar la tabla de niveles L0–L4 y formalizar el protocolo human-in-the-loop para acciones críticas."
       : "Falta formalización en la gestión de riesgos del agente. Para subir un nivel: Clasificar cada herramienta en la escala L0–L4 y documentar qué acciones están explícitamente fuera del alcance."
@@ -799,13 +858,10 @@ export async function testGeminiConnectivity(): Promise<{
   }
 
   const candidateModels = [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-flash-latest',
     'gemini-3.7-flash',
-    'gemini-3.6-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-flash-latest'
+    'gemini-3.1-flash-lite',
+    'gemini-3.1-pro-preview'
   ];
 
   const ai = new GoogleGenAI({
@@ -839,7 +895,11 @@ export async function testGeminiConnectivity(): Promise<{
       };
     } catch (err: any) {
       const latency_ms = Date.now() - t0;
-      attempts.push({ model, ok: false, latency_ms, error: err.message || String(err) });
+      const errMsg = err?.message || String(err);
+      const is503 = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE');
+      const is429 = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED');
+      const cleanErr = is503 ? 'Alta demanda temporal (503 UNAVAILABLE)' : is429 ? 'Límite de cuota alcanzado (429 Rate Limit)' : errMsg;
+      attempts.push({ model, ok: false, latency_ms, error: cleanErr });
     }
   }
 
@@ -882,17 +942,15 @@ export async function runEvaluation(
   const t0 = Date.now();
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
+  const modelErrors: Array<{ model: string; error: string }> = [];
 
   if (geminiApiKey && (provider === 'gemini' || provider === 'auto')) {
-    // Current active Gemini models in @google/genai & Google AI API
+    // Supported and valid Gemini models in order of throughput and availability
     const candidateModels = [
-      'gemini-2.5-flash',
-      'gemini-2.5-pro',
+      'gemini-flash-latest',
       'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-flash-latest'
+      'gemini-3.1-flash-lite',
+      'gemini-3.1-pro-preview'
     ];
 
     const ai = new GoogleGenAI({
@@ -903,8 +961,6 @@ export async function runEvaluation(
         }
       }
     });
-
-    const modelErrors: Array<{ model: string; error: string }> = [];
 
     for (const modelName of candidateModels) {
       try {
@@ -975,8 +1031,17 @@ export async function runEvaluation(
         evaluationResultsCache.set(cacheKey, { result, expiresAt: now + 3 * 60 * 1000 });
         return result;
       } catch (e: any) {
-        console.warn(`[Evaluator] Intento con modelo ${modelName} falló:`, e.message || e);
-        modelErrors.push({ model: modelName, error: e.message || String(e) });
+        const errMsg = e?.message || String(e);
+        const is503 = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE');
+        const isQuota = e?.status === 429 || errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED');
+        const cleanMsg = is503 
+          ? 'Alta demanda temporal en servidor (503 UNAVAILABLE)' 
+          : isQuota 
+          ? 'Cuota gratuita de solicitudes alcanzada (429 Rate Limit / Quota Exceeded)' 
+          : errMsg;
+
+        console.warn(`[Evaluator] Intento con modelo ${modelName}:`, cleanMsg);
+        modelErrors.push({ model: modelName, error: cleanMsg });
         // Continue trying next candidate model
         continue;
       }
@@ -990,6 +1055,8 @@ export async function runEvaluation(
 
   const motivoFallback = !geminiApiKey
     ? 'GEMINI_API_KEY no configurada en el entorno'
+    : modelErrors.length > 0
+    ? `Modelos Gemini no disponibles o con límite de cuota (429/503). Intentos: ${modelErrors.map(m => `${m.model}: ${m.error.slice(0, 80)}`).join(' | ')}. Se aplicó motor determinista calibrado.`
     : 'Modelos Gemini no respondieron o excedieron timeout; se aplicó el motor determinista de respaldo calibrado con la Rúbrica v5';
 
   const log = {

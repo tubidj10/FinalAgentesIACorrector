@@ -31,7 +31,7 @@ export interface HallazgoCodigo {
 export interface ForensicAuditCheck {
   id: string;
   nombre: string;
-  categoria: 'seguridad' | 'anti_slop' | 'robustez_prompt' | 'cadencia_git' | 'eficiencia_tokens' | 'gobernanza_l0_l4';
+  categoria: 'seguridad' | 'anti_slop' | 'robustez_prompt' | 'cadencia_git' | 'eficiencia_tokens' | 'gobernanza_l0_l4' | 'calidad_herramientas' | 'evaluacion_automatizada' | 'integridad_contrato';
   estado: 'aprobado' | 'advertencia' | 'critico';
   puntaje_impacto: number; // e.g. 0 (sin penalidad), -5, -15
   descripcion: string;
@@ -47,6 +47,9 @@ export interface ForensicAuditSummary {
   calidad_aislamiento_prompts: 'ALTA' | 'MEDIA' | 'VULNERABLE';
   resiliencia_errores: 'ROBUSTA' | 'PARCIAL' | 'INEXISTENTE';
   cadencia_commits: 'INCREMENTAL' | 'MODERADA' | 'COMMIT_UNICO_SOSPECHOSO';
+  calidad_herramientas?: 'ROBUSTA' | 'BASICA' | 'DEFICIENTE';
+  evaluacion_automatizada?: 'INTEGRADA' | 'MANUAL' | 'INEXISTENTE';
+  integridad_contrato?: 'ESTRICTA' | 'PARCIAL' | 'INCOMPLETA';
   controles: ForensicAuditCheck[];
 }
 

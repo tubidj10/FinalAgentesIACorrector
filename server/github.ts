@@ -59,7 +59,14 @@ const ALIASES_RUTAS: Record<string, string[]> = {
 };
 
 const EXTENSIONES_CODIGO = new Set([
-  ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rb", ".java", ".rs", ".sh"
+  ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rb", ".java", ".rs", ".sh",
+  ".lock", ".toml", ".yml", ".yaml", ".json", ".txt"
+]);
+
+const MANIFEST_NAMES = new Set([
+  "requirements.txt", "requirements.lock", "pipfile", "pipfile.lock",
+  "pyproject.toml", "package.json", "package-lock.json", "dockerfile",
+  ".env.example"
 ]);
 
 // In-memory cache for extracted repo data (TTL: 5 minutes)
@@ -459,13 +466,21 @@ export async function extractRepoContents(
         (lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.md'));
     }).slice(0, 15);
 
-    // C. Find Code Files (e.g. agente/*.py, *.py, *.sh, *.ts, *.js)
+    // C. Find Code & Manifest Files (e.g. agente/*.py, *.py, *.sh, *.ts, requirements.txt, requirements.lock)
     const codeBlobPaths = treeBlobs.filter(p => {
       const lower = p.toLowerCase();
-      if (lower.startsWith('.') || lower.includes('node_modules') || lower.includes('.venv') || lower.includes('venv') || lower.includes('__pycache__')) return false;
+      if (lower.startsWith('.') || lower.includes('node_modules') || lower.includes('.venv') || lower.includes('venv') || lower.includes('__pycache__') || lower.includes('dist/')) return false;
+      const baseName = lower.split('/').pop() || '';
       const ext = '.' + p.split('.').pop();
-      return EXTENSIONES_CODIGO.has(ext) && !RUTAS_OBLIGATORIAS.includes(p);
-    }).slice(0, 10);
+      return (EXTENSIONES_CODIGO.has(ext) || MANIFEST_NAMES.has(baseName)) && !RUTAS_OBLIGATORIAS.includes(p);
+    }).sort((a, b) => {
+      const baseA = a.toLowerCase().split('/').pop() || '';
+      const baseB = b.toLowerCase().split('/').pop() || '';
+      // Manifests first, then agent/runner scripts
+      if (MANIFEST_NAMES.has(baseA)) return -1;
+      if (MANIFEST_NAMES.has(baseB)) return 1;
+      return 0;
+    }).slice(0, 20);
 
     // Concurrently download all resolved files
     const [fetchedObligatory, fetchedCorridas, fetchedCode] = await Promise.all([

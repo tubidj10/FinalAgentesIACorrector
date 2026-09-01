@@ -14,7 +14,10 @@ import {
   ChevronUp, 
   Info,
   Sparkles,
-  Lock
+  Lock,
+  Wrench,
+  FlaskConical,
+  FileCheck2
 } from 'lucide-react';
 import { ForensicAuditSummary, ForensicAuditCheck } from '../types';
 
@@ -24,6 +27,7 @@ interface ForensicAuditCardProps {
 
 export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAudit }) => {
   const [expandedCheck, setExpandedCheck] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
 
   if (!forensicAudit) {
     return (
@@ -42,6 +46,9 @@ export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAu
     calidad_aislamiento_prompts,
     resiliencia_errores,
     cadencia_commits,
+    calidad_herramientas,
+    evaluacion_automatizada,
+    integridad_contrato,
     controles
   } = forensicAudit;
 
@@ -63,9 +70,21 @@ export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAu
       case 'cadencia_git': return GitCommit;
       case 'eficiencia_tokens': return Cpu;
       case 'gobernanza_l0_l4': return Scale;
+      case 'calidad_herramientas': return Wrench;
+      case 'evaluacion_automatizada': return FlaskConical;
+      case 'integridad_contrato': return FileCheck2;
       default: return ShieldCheck;
     }
   };
+
+  const filteredControles = selectedCategory === 'todos'
+    ? controles
+    : controles.filter(c => c.categoria === selectedCategory);
+
+  const categoriesCount = controles.reduce((acc, c) => {
+    acc[c.categoria] = (acc[c.categoria] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 space-y-6 shadow-xl">
@@ -78,14 +97,14 @@ export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAu
           <div>
             <div className="flex items-center space-x-2">
               <h3 className="text-base font-bold text-white tracking-tight">
-                Auditoría Forense & Nuevos Controles de Seguridad v5.2
+                Auditoría Forense & Nuevos Controles Estrictos v5.2
               </h3>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getRiskColor(nivel_riesgo)}`}>
                 Riesgo: {nivel_riesgo}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Escaneo automatizado de fugas de API keys, código espejismo (anti-mocking), robustez de prompts y trazabilidad Git.
+              Inspección profunda de seguridad, Tool Calling, resiliencia 429, schemas de salida, test harness y gobernanza L0–L4.
             </p>
           </div>
         </div>
@@ -101,18 +120,18 @@ export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAu
       </div>
 
       {/* Quick Indicator Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 text-xs">
         <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
-          <span className="text-[10px] uppercase font-bold text-slate-500 block">Secretos Expuestos</span>
+          <span className="text-[10px] uppercase font-bold text-slate-500 block">Secretos & API Keys</span>
           <span className={`font-bold text-sm mt-0.5 block ${secretos_detectados > 0 ? 'text-rose-400 font-mono' : 'text-emerald-400'}`}>
             {secretos_detectados > 0 ? `🚨 ${secretos_detectados} detectado/s` : '✅ Ninguno'}
           </span>
         </div>
 
         <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
-          <span className="text-[10px] uppercase font-bold text-slate-500 block">Anti-Mocking / Slop</span>
+          <span className="text-[10px] uppercase font-bold text-slate-500 block">Inferencia Real</span>
           <span className={`font-bold text-sm mt-0.5 block ${deteccion_slop_mock ? 'text-rose-400' : 'text-emerald-400'}`}>
-            {deteccion_slop_mock ? '⚠️ Código Simulado' : '✅ Inferencia Real'}
+            {deteccion_slop_mock ? '⚠️ Código Simulado' : '✅ SDK Genuino'}
           </span>
         </div>
 
@@ -121,16 +140,43 @@ export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAu
           <span className={`font-bold text-sm mt-0.5 block ${
             calidad_aislamiento_prompts === 'ALTA' ? 'text-emerald-400' : calidad_aislamiento_prompts === 'MEDIA' ? 'text-amber-400' : 'text-rose-400'
           }`}>
-            {calidad_aislamiento_prompts === 'ALTA' ? '🛡️ Blindado (XML/JSON)' : calidad_aislamiento_prompts === 'MEDIA' ? '⚠️ Parcial' : '🚨 Vulnerable'}
+            {calidad_aislamiento_prompts === 'ALTA' ? '🛡️ XML & Directivas' : calidad_aislamiento_prompts === 'MEDIA' ? '⚠️ Parcial' : '🚨 Vulnerable'}
           </span>
         </div>
 
         <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
-          <span className="text-[10px] uppercase font-bold text-slate-500 block">Manejo de Errores 429</span>
+          <span className="text-[10px] uppercase font-bold text-slate-500 block">Resiliencia 429 & Backoff</span>
           <span className={`font-bold text-sm mt-0.5 block ${
             resiliencia_errores === 'ROBUSTA' ? 'text-emerald-400' : 'text-amber-400'
           }`}>
             {resiliencia_errores === 'ROBUSTA' ? '✅ Retry & Backoff' : '⚠️ Sin Backoff'}
+          </span>
+        </div>
+
+        <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+          <span className="text-[10px] uppercase font-bold text-slate-500 block">Herramientas / Tools</span>
+          <span className={`font-bold text-sm mt-0.5 block ${
+            calidad_herramientas === 'ROBUSTA' ? 'text-emerald-400' : calidad_herramientas === 'BASICA' ? 'text-indigo-400' : 'text-amber-400'
+          }`}>
+            {calidad_herramientas === 'ROBUSTA' ? '🔧 Typed Schemas' : calidad_herramientas === 'BASICA' ? '🔧 Declarado' : '⚠️ Texto Plano'}
+          </span>
+        </div>
+
+        <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+          <span className="text-[10px] uppercase font-bold text-slate-500 block">Test Harness / Evals</span>
+          <span className={`font-bold text-sm mt-0.5 block ${
+            evaluacion_automatizada === 'INTEGRADA' ? 'text-emerald-400' : evaluacion_automatizada === 'MANUAL' ? 'text-indigo-400' : 'text-amber-400'
+          }`}>
+            {evaluacion_automatizada === 'INTEGRADA' ? '🧪 Suite Automatizada' : evaluacion_automatizada === 'MANUAL' ? '🧪 Fixtures Manuales' : '⚠️ Sin Tests'}
+          </span>
+        </div>
+
+        <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+          <span className="text-[10px] uppercase font-bold text-slate-500 block">Integridad del Contrato</span>
+          <span className={`font-bold text-sm mt-0.5 block ${
+            integridad_contrato === 'ESTRICTA' ? 'text-emerald-400' : integridad_contrato === 'PARCIAL' ? 'text-amber-400' : 'text-rose-400'
+          }`}>
+            {integridad_contrato === 'ESTRICTA' ? '📄 Enums & Pydantic' : integridad_contrato === 'PARCIAL' ? '📄 JSON Estándar' : '⚠️ Sin Schema'}
           </span>
         </div>
 
@@ -144,13 +190,44 @@ export const ForensicAuditCard: React.FC<ForensicAuditCardProps> = ({ forensicAu
         </div>
       </div>
 
+      {/* Category Filter Pills */}
+      <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
+        <button
+          onClick={() => setSelectedCategory('todos')}
+          className={`px-3 py-1 rounded-lg font-medium transition ${
+            selectedCategory === 'todos'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
+          }`}
+        >
+          Todos ({controles.length})
+        </button>
+        {Object.entries(categoriesCount).map(([cat, count]) => {
+          const Icon = getCategoryIcon(cat);
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition ${
+                selectedCategory === cat
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+              <span className="capitalize">{cat.replace(/_/g, ' ')} ({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Deep Check Breakdown List */}
       <div className="space-y-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Controles & Puntos de Control Forense Auditados ({controles.length})
+          Controles & Puntos de Control Forense Auditados ({filteredControles.length})
         </h4>
 
-        {controles.map((check) => {
+        {filteredControles.map((check) => {
           const IconComponent = getCategoryIcon(check.categoria);
           const isExpanded = expandedCheck === check.id;
 

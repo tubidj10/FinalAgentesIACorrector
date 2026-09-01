@@ -3,7 +3,7 @@ import { ExtractedRepoData } from './github.js';
 export interface ForensicAuditCheck {
   id: string;
   nombre: string;
-  categoria: 'seguridad' | 'anti_slop' | 'robustez_prompt' | 'cadencia_git' | 'eficiencia_tokens' | 'gobernanza_l0_l4';
+  categoria: 'seguridad' | 'anti_slop' | 'robustez_prompt' | 'cadencia_git' | 'eficiencia_tokens' | 'gobernanza_l0_l4' | 'calidad_herramientas' | 'evaluacion_automatizada' | 'integridad_contrato';
   estado: 'aprobado' | 'advertencia' | 'critico';
   puntaje_impacto: number;
   descripcion: string;
@@ -19,6 +19,9 @@ export interface ForensicAuditSummary {
   calidad_aislamiento_prompts: 'ALTA' | 'MEDIA' | 'VULNERABLE';
   resiliencia_errores: 'ROBUSTA' | 'PARCIAL' | 'INEXISTENTE';
   cadencia_commits: 'INCREMENTAL' | 'MODERADA' | 'COMMIT_UNICO_SOSPECHOSO';
+  calidad_herramientas?: 'ROBUSTA' | 'BASICA' | 'DEFICIENTE';
+  evaluacion_automatizada?: 'INTEGRADA' | 'MANUAL' | 'INEXISTENTE';
+  integridad_contrato?: 'ESTRICTA' | 'PARCIAL' | 'INCOMPLETA';
   controles: ForensicAuditCheck[];
 }
 
@@ -287,7 +290,7 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   // 6. GOBERNANZA: Blast Radius & Guardas Human-in-the-loop (L0-L4)
   // =========================================================================
   const hasHighRiskWriteActions = /send_email|borrar|update_db|ejecutar_pago|delete|exec|eval\(/i.test(allRepoCode);
-  const hasHumanGuardrails = /human-in-the-loop|aprobaci[oó]n|confirmaci[oó]n|requiere_autorizacion|approval_required/i.test(allRepoCode);
+  const hasHumanGuardrails = /human-in-the-loop|aprobaci[oó]n|confirmaci[oó]n|requiere_autorizacion|approval_required|hitlsignoff|signoff/i.test(allRepoCode);
 
   if (hasHighRiskWriteActions && !hasHumanGuardrails) {
     controles.push({
@@ -313,6 +316,211 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
     });
   }
 
+  // =========================================================================
+  // 7. CALIDAD DE HERRAMIENTAS (TOOL CALLING): Declaración y Validación
+  // =========================================================================
+  const hasToolDeclaration = /tools\s*:\s*\[|functionDeclarations|tool_calls|tools_schema|function_call/i.test(allRepoCode);
+  const hasToolInputValidation = (
+    /ventana_minutos|params|schema|Type\.OBJECT|pydantic|zod|min_value|max_value|fuera_de_rango/i.test(allRepoCode)
+  );
+  const hasToolErrorHandling = /tool.*status|tool_error|status:\s*400|error.*monitoreo|error.*tool/i.test(allRepoCode);
+
+  let calidadHerramientas: 'ROBUSTA' | 'BASICA' | 'DEFICIENTE' = 'DEFICIENTE';
+  if (hasToolDeclaration && hasToolInputValidation && hasToolErrorHandling) {
+    calidadHerramientas = 'ROBUSTA';
+    controles.push({
+      id: 'TOOL-01',
+      nombre: 'Contrato de Herramientas y Validación de Tipos',
+      categoria: 'calidad_herramientas',
+      estado: 'aprobado',
+      puntaje_impacto: 0,
+      descripcion: 'Herramientas declaradas con schema formal (types/properties), validación de rangos y manejo explícito de errores.',
+      evidencia: 'Definición de functionDeclarations o tools con validación de parámetros y respuestas de error.',
+      recomendacion: 'Diseño de herramientas robusto para arquitecturas agénticas en producción.'
+    });
+  } else if (hasToolDeclaration) {
+    calidadHerramientas = 'BASICA';
+    controles.push({
+      id: 'TOOL-01',
+      nombre: 'Validación de Parámetros en Herramientas',
+      categoria: 'calidad_herramientas',
+      estado: 'advertencia',
+      puntaje_impacto: -3,
+      descripcion: 'Herramientas declaradas pero carecen de validación de límites/rangos en parámetros de entrada (ej. min/max o tipos estrictos).',
+      evidencia: 'Herramientas sin validación explícita de límites defensivos.',
+      recomendacion: 'Validar parámetros de entrada antes de ejecutar la función (ej. rangos numéricos, schemas Pydantic/Zod).'
+    });
+  } else {
+    calidadHerramientas = 'DEFICIENTE';
+    controles.push({
+      id: 'TOOL-01',
+      nombre: 'Herramientas / Function Calling Agéntico',
+      categoria: 'calidad_herramientas',
+      estado: 'advertencia',
+      puntaje_impacto: -4,
+      descripcion: 'No se detectó uso de herramientas estructuradas (Function Calling) o el agente opera exclusivamente con texto plano.',
+      evidencia: 'Sin schemas de tools ni declaraciones de function calling.',
+      recomendacion: 'Definir herramientas agénticas con schemas formales para consultas a servicios externos.'
+    });
+  }
+
+  // =========================================================================
+  // 8. EVALUACIÓN AUTOMATIZADA Y TEST HARNESS (LLM-as-a-Judge / Tests)
+  // =========================================================================
+  const hasAutomatedTests = (
+    /pytest|unittest|jest|vitest|test_cases|casos_prueba|test_corrida|test_monitoreo|evaluateDeterministically/i.test(allRepoCode) ||
+    data.archivos_codigo.some(c => c.ruta.toLowerCase().includes('test') || c.ruta.toLowerCase().includes('spec'))
+  );
+  const hasGoldenDataset = /casos|fixtures|dataset|ground_truth|benchmarks|alertas_prueba/i.test(allRepoCode);
+
+  let evaluacionAutomatizada: 'INTEGRADA' | 'MANUAL' | 'INEXISTENTE' = 'INEXISTENTE';
+  if (hasAutomatedTests && hasGoldenDataset) {
+    evaluacionAutomatizada = 'INTEGRADA';
+    controles.push({
+      id: 'TEST-01',
+      nombre: 'Batería de Pruebas & Evaluación Automatizada (Harness)',
+      categoria: 'evaluacion_automatizada',
+      estado: 'aprobado',
+      puntaje_impacto: 0,
+      descripcion: 'El repositorio incluye suite de pruebas automatizadas o dataset de evaluación (fixtures/casos de prueba) verificable.',
+      evidencia: 'Presencia de fixtures de prueba, validaciones o scripts de test harness.',
+      recomendacion: 'Excelente práctica de evaluación continua (Evals).'
+    });
+  } else if (hasGoldenDataset || hasAutomatedTests) {
+    evaluacionAutomatizada = 'MANUAL';
+    controles.push({
+      id: 'TEST-01',
+      nombre: 'Dataset de Evaluación y Casos Límite',
+      categoria: 'evaluacion_automatizada',
+      estado: 'advertencia',
+      puntaje_impacto: -2,
+      descripcion: 'Se observan fixtures o corridas pero falta un script o comando de ejecución de tests automatizado.',
+      evidencia: 'Datos de prueba presentes sin runner automatizado de test/asserts.',
+      recomendacion: 'Implementar script de prueba unificado (ej: pytest o vitest) para automatizar la evaluación de regresión.'
+    });
+  } else {
+    evaluacionAutomatizada = 'INEXISTENTE';
+    controles.push({
+      id: 'TEST-01',
+      nombre: 'Ausencia de Test Harness / Suite de Pruebas',
+      categoria: 'evaluacion_automatizada',
+      estado: 'advertencia',
+      puntaje_impacto: -4,
+      descripcion: 'No se detectó suite de pruebas automatizadas ni dataset de evaluación para verificar la consistencia del agente.',
+      evidencia: 'Sin archivos de prueba (test_*.py, *.spec.ts) ni fixtures estructurados.',
+      recomendacion: 'Añadir casos de prueba automatizados cubriendo casos felices, errores y casos límite.'
+    });
+  }
+
+  // =========================================================================
+  // 9. INTEGRIDAD DEL CONTRATO Y SCHEMA DE SALIDA (JSON / Pydantic / Enums)
+  // =========================================================================
+  const hasPydanticOrZod = /pydantic|BaseModel|zod|z\.object|response_schema|response_format|response_mime_type/i.test(allRepoCode);
+  const hasEnumClosedDomain = /Literal\[|Enum\b|values\s*:\s*\[|enum\s*:/i.test(allRepoCode) || /prioridad|severidad|tipo_incidente/i.test(sysPrompt);
+  const hasConfidenceField = /confianza|score|probabilidad|confidence/i.test(sysPrompt) || /confianza|confidence/i.test(allRepoCode);
+
+  let integridadContrato: 'ESTRICTA' | 'PARCIAL' | 'INCOMPLETA' = 'INCOMPLETA';
+  if (hasPydanticOrZod && hasEnumClosedDomain && hasConfidenceField) {
+    integridadContrato = 'ESTRICTA';
+    controles.push({
+      id: 'CNTR-01',
+      nombre: 'Contrato Estricto con Tipado y Dominio Cerrado (Enums/Pydantic)',
+      categoria: 'integridad_contrato',
+      estado: 'aprobado',
+      puntaje_impacto: 0,
+      descripcion: 'El agente fuerza schema estructurado con tipos estrictos, enums de dominio cerrado y scoring de confianza calibrado.',
+      evidencia: 'Uso de schemas formales con enums cerrados y campo de confianza de decisión.',
+      recomendacion: 'Diseño de contrato robusto contra alucinaciones sintácticas.'
+    });
+  } else if (hasPydanticOrZod || hasEnumClosedDomain) {
+    integridadContrato = 'PARCIAL';
+    controles.push({
+      id: 'CNTR-01',
+      nombre: 'Robustez de Schema y Tipado en Contrato',
+      categoria: 'integridad_contrato',
+      estado: 'advertencia',
+      puntaje_impacto: -2,
+      descripcion: 'El contrato solicita JSON pero no restringe todas las categorías a enums cerrados ni incluye scoring de confianza.',
+      evidencia: 'Schema JSON con campos abiertos no restringidos formalmente a un set cerrado de valores.',
+      recomendacion: 'Usar Enums o Literales cerrados para todas las clasificaciones categóricas.'
+    });
+  } else {
+    integridadContrato = 'INCOMPLETA';
+    controles.push({
+      id: 'CNTR-01',
+      nombre: 'Contrato Débil sin Schema Forzado',
+      categoria: 'integridad_contrato',
+      estado: 'advertencia',
+      puntaje_impacto: -4,
+      descripcion: 'El agente responde en texto libre o JSON sin schema estructurado, permitiendo variaciones en las claves de salida.',
+      evidencia: 'Falta definición de schema con response_mime_type="application/json".',
+      recomendacion: 'Implementar structured outputs con Schema estricto del SDK.'
+    });
+  }
+
+  // =========================================================================
+  // 10. EFICIENCIA DE TOKENS Y LATENCIA (Truncado de Contexto & Presupuesto)
+  // =========================================================================
+  const hasContextTruncation = /truncat|max_chars|tail|slice|head|ventana_minutos|max_tokens|limit/i.test(allRepoCode);
+  const hasLatencyMeasurement = /latency|latencia|time\.time\(\)|Date\.now\(\)|duracion_segundos|elapsed/i.test(allRepoCode);
+
+  if (hasContextTruncation && hasLatencyMeasurement) {
+    controles.push({
+      id: 'PERF-01',
+      nombre: 'Control de Ventana de Contexto y Telemetría de Latencia',
+      categoria: 'eficiencia_tokens',
+      estado: 'aprobado',
+      puntaje_impacto: 0,
+      descripcion: 'El código implementa límites de truncado para evitar desbordes de contexto y mide latencias de inferencia.',
+      evidencia: 'Truncado defensivo y medición de tiempos de respuesta implementados.',
+      recomendacion: 'Óptima optimización de consumo de tokens y observabilidad.'
+    });
+  } else {
+    controles.push({
+      id: 'PERF-01',
+      nombre: 'Control de Desborde de Contexto y Latencia',
+      categoria: 'eficiencia_tokens',
+      estado: 'advertencia',
+      puntaje_impacto: -2,
+      descripcion: 'No se detectó un límite explícito de truncado al inyectar logs/textos extensos en el prompt o medición de latencia.',
+      evidencia: 'Inyección de strings variables sin límite máximo de caracteres/líneas.',
+      recomendacion: 'Añadir función de truncado de logs a N caracteres/líneas para proteger la ventana de contexto y los costos.'
+    });
+  }
+
+  // =========================================================================
+  // 11. AUDITORÍA DE ARTEFACTOS Y CORRIDAS (JSON Crudo & Trazabilidad)
+  // =========================================================================
+  const hasMultipleCorridaTypes = corridas.length >= 3 && (
+    corridas.some(c => c.nombre.includes('01') || c.nombre.includes('feliz') || c.nombre.includes('happy')) &&
+    corridas.some(c => c.nombre.includes('02') || c.nombre.includes('alta') || c.nombre.includes('p1')) &&
+    corridas.some(c => c.nombre.includes('03') || c.nombre.includes('error') || c.nombre.includes('servicio') || c.nombre.includes('429'))
+  );
+
+  if (hasMultipleCorridaTypes) {
+    controles.push({
+      id: 'ARTI-01',
+      nombre: 'Trazabilidad de Corridas Multiescenario (P1, P2, Errores)',
+      categoria: 'anti_slop',
+      estado: 'aprobado',
+      puntaje_impacto: 0,
+      descripcion: 'El repositorio incluye corridas exhaustivas cubriendo múltiples severidades y condiciones de error simuladas.',
+      evidencia: `${corridas.length} corridas estructuradas con escenarios diversos en corridas/.`,
+      recomendacion: 'Excelente rigor en la generación de evidencias empíricas.'
+    });
+  } else if (corridas.length > 0) {
+    controles.push({
+      id: 'ARTI-01',
+      nombre: 'Diversidad de Escenarios en Corridas',
+      categoria: 'anti_slop',
+      estado: 'advertencia',
+      puntaje_impacto: -2,
+      descripcion: 'Se registran corridas pero no cubren una diversidad balanceada de escenarios (camino feliz, fallas de servicio, severidades altas).',
+      evidencia: `${corridas.length} corrida(s) encontrada(s).`,
+      recomendacion: 'Documentar al menos 3 corridas con diferentes escenarios y condiciones de error.'
+    });
+  }
+
   // Calculate Health Score & Risk Level
   let penalidadTotal = controles.reduce((sum, c) => sum + Math.abs(c.puntaje_impacto), 0);
   const saludTecnica = Math.max(0, 100 - penalidadTotal);
@@ -334,6 +542,9 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
     calidad_aislamiento_prompts: calidadAislamiento,
     resiliencia_errores: resilienciaErrores,
     cadencia_commits: cadenciaCommits,
+    calidad_herramientas: calidadHerramientas,
+    evaluacion_automatizada: evaluacionAutomatizada,
+    integridad_contrato: integridadContrato,
     controles
   };
 }

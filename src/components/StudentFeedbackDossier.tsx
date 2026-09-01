@@ -81,12 +81,19 @@ export const StudentFeedbackDossier: React.FC<StudentFeedbackDossierProps> = ({ 
       md += `- **Diagnóstico de proceso:** ${historia_git.diagnostico_proceso}\n\n`;
     }
 
-    md += `## 2. 📊 Desglose de Calificación por Dimensión\n\n`;
-    md += `| Dimensión | Puntos Ponderados | Nivel Asignado | Síntesis |\n`;
-    md += `| :--- | :---: | :---: | :--- |\n`;
-    dimensiones.forEach(d => {
-      const pond = Number(d.puntaje_ponderado).toFixed(1);
-      md += `| **${d.dimension}** | **${pond} pts** | \`${d.escala_elegida}\` | ${d.justificacion?.replace(/\n/g, ' ')} |\n`;
+    md += `## 2. 📊 Desglose de Calificación por Dimensión & Puntos Descontados\n\n`;
+    md += `| Dimensión | Nota Asignada | Ponderado | Descontado | Motivo / Qué Falta para 10/10 |\n`;
+    md += `| :--- | :---: | :---: | :---: | :--- |\n`;
+    dimensiones.forEach((d, idx) => {
+      const pond = Number(d.puntaje_ponderado);
+      const peso = d.peso || (idx === 0 ? 30 : idx === 1 ? 25 : 15);
+      const descontado = Math.max(0, peso - pond);
+      const failed = (d.checklist || []).find(c => !c.cumple);
+      const motivo = descontado > 0 
+        ? `${failed ? failed.item + '. ' : ''}${d.sugerencia_concreta || d.justificacion}`.replace(/\n/g, ' ')
+        : '✅ 100% Criterios cumplidos';
+
+      md += `| **D${idx + 1}: ${d.dimension} (${peso}%)** | \`${d.puntaje_asignado}\` | **${pond.toFixed(1)} / ${peso} pts** | ${descontado > 0 ? `**-${descontado.toFixed(1)} pts**` : '0.0 pts'} | ${motivo} |\n`;
     });
     md += `\n`;
 
