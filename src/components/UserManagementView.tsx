@@ -132,54 +132,80 @@ export const UserManagementView: React.FC = () => {
         </div>
       </div>
 
-      {/* Pending Access Requests Banner (if any) */}
-      {pendingRequests.length > 0 && (
-        <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center space-x-2 text-amber-300 font-bold text-sm mb-4">
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
-            <span>Solicitudes de Acceso Pendientes ({pendingRequests.length})</span>
+      {/* Pending Access Requests Section (Always visible) */}
+      <div className={`rounded-2xl p-6 shadow-lg border transition-all ${
+        pendingRequests.length > 0
+          ? 'bg-amber-950/30 border-amber-500/40 shadow-amber-500/5'
+          : 'bg-slate-900/80 border-slate-800'
+      }`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <ShieldAlert className={`w-4 h-4 ${pendingRequests.length > 0 ? 'text-amber-400' : 'text-slate-400'}`} />
+            <h2 className="text-sm font-bold text-slate-100">
+              Solicitudes de Acceso Pendientes
+            </h2>
+            {pendingRequests.length > 0 ? (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-slate-950">
+                {pendingRequests.length} pendientes
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400">
+                0 pendientes
+              </span>
+            )}
           </div>
+          <span className="text-[11px] text-slate-400 hidden sm:inline">
+            Aprobación en 1 clic
+          </span>
+        </div>
 
+        {pendingRequests.length > 0 ? (
           <div className="space-y-3">
             {pendingRequests.map((req) => (
               <div 
                 key={req.id} 
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 gap-3"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 gap-3"
               >
                 <div className="flex items-center space-x-3">
                   {req.photoURL ? (
-                    <img src={req.photoURL} alt={req.displayName || req.email} className="w-8 h-8 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
+                    <img src={req.photoURL} alt={req.displayName || req.email} className="w-9 h-9 rounded-full border border-slate-700 object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 font-bold text-xs">
+                    <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-xs">
                       {req.email[0].toUpperCase()}
                     </div>
                   )}
                   <div>
-                    <div className="font-semibold text-xs text-slate-100">{req.displayName || req.email}</div>
-                    <div className="text-[11px] text-slate-400">{req.email}</div>
+                    <div className="font-bold text-xs text-slate-100">{req.displayName || req.email.split('@')[0]}</div>
+                    <div className="text-[11px] text-slate-400 font-mono">{req.email}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Solicitado: {new Date(req.requestedAt).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
                   <button
+                    id={`btn-approve-eval-${req.id}`}
                     onClick={() => approveAccessRequest(req, 'evaluator')}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1 transition shadow-sm"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1.5 transition shadow-sm shadow-emerald-600/20"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Aprobar como Evaluador</span>
+                    <span>Habilitar Evaluador</span>
                   </button>
 
                   <button
+                    id={`btn-approve-admin-${req.id}`}
                     onClick={() => approveAccessRequest(req, 'admin')}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center space-x-1 transition shadow-sm"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center space-x-1.5 transition shadow-sm shadow-indigo-600/20"
                   >
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Aprobar como Admin</span>
+                    <span>Habilitar Admin</span>
                   </button>
 
                   <button
+                    id={`btn-reject-${req.id}`}
                     onClick={() => rejectAccessRequest(req.id)}
-                    className="p-1.5 rounded-lg text-xs text-slate-400 hover:text-red-400 hover:bg-slate-800 transition"
+                    className="p-2 rounded-xl text-xs text-slate-400 hover:text-red-400 hover:bg-slate-800 transition"
                     title="Rechazar solicitud"
                   >
                     <X className="w-4 h-4" />
@@ -188,8 +214,20 @@ export const UserManagementView: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="py-6 px-4 rounded-xl bg-slate-950/40 border border-slate-800/80 text-center">
+            <div className="w-10 h-10 rounded-full bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto mb-2">
+              <Check className="w-5 h-5 text-emerald-400" />
+            </div>
+            <p className="text-xs font-semibold text-slate-300 mb-1">
+              No hay solicitudes pendientes en este momento
+            </p>
+            <p className="text-[11px] text-slate-500 max-w-lg mx-auto">
+              Cuando un usuario intente ingresar con su cuenta de Google y no esté en la lista, podrá presionar "Solicitar Habilitación de Acceso" y aparecerá aquí automáticamente para que lo apruebes. También podés darlo de alta directamente usando el formulario abajo.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Grid: Create User Form + User List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

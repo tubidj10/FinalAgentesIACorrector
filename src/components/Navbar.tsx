@@ -76,10 +76,38 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
               <span>{hasGeminiKey ? 'Gemini 2.5 Flash' : 'Motor Calibrado'}</span>
             </div>
 
+            {/* Direct Admin Quick Access Button */}
+            {isAdmin && (
+              <button
+                id="btn-quick-user-management"
+                onClick={() => setActiveTab('usuarios')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                  activeTab === 'usuarios'
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
+                    : 'bg-slate-800/90 hover:bg-slate-800 text-slate-200 border-slate-700 hover:border-slate-600'
+                }`}
+                title="Abrir panel de Gestión de Usuarios y Solicitudes"
+              >
+                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Usuarios</span>
+                {pendingRequests.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-pulse">
+                    {pendingRequests.length}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Authenticated User Pill */}
             {user && (
               <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
-                <div className="flex items-center space-x-2 bg-slate-950/70 border border-slate-800 px-2.5 py-1 rounded-xl">
+                <div 
+                  onClick={() => isAdmin && setActiveTab('usuarios')}
+                  className={`flex items-center space-x-2 bg-slate-950/70 border border-slate-800 px-2.5 py-1 rounded-xl ${
+                    isAdmin ? 'cursor-pointer hover:border-slate-700' : ''
+                  }`}
+                  title={isAdmin ? 'Haz click para ir a Gestión de Usuarios' : ''}
+                >
                   {user.photoURL ? (
                     <img 
                       src={user.photoURL} 

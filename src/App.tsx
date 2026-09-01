@@ -15,7 +15,7 @@ import { AccessPendingScreen } from './components/AccessPendingScreen';
 import { Scale, RefreshCw } from 'lucide-react';
 
 function AppContent() {
-  const { user, isAuthorized, loading } = useAuth();
+  const { user, isAuthorized, isAdmin, pendingRequests, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('evaluador');
   const [health, setHealth] = useState<{ has_gemini_key: boolean; has_github_token: boolean } | null>(null);
 
@@ -59,6 +59,26 @@ function AppContent() {
         setActiveTab={setActiveTab} 
         hasGeminiKey={health?.has_gemini_key ?? false}
       />
+
+      {/* Admin Notification Banner for Pending Requests */}
+      {isAdmin && pendingRequests.length > 0 && activeTab !== 'usuarios' && (
+        <div className="bg-gradient-to-r from-amber-900/80 via-amber-800/80 to-amber-900/80 border-b border-amber-500/40 px-4 py-2.5 text-xs text-amber-100 shadow-md">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>
+                <strong>Atención:</strong> Tienes <strong>{pendingRequests.length}</strong> solicitud{pendingRequests.length > 1 ? 'es' : ''} de acceso pendiente{pendingRequests.length > 1 ? 's' : ''} de autorización.
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveTab('usuarios')}
+              className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[11px] rounded-lg transition shadow-sm"
+            >
+              Revisar y Habilitar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -8,15 +8,8 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email.lower() == 'martindperez@gmail.com'
-      );
-    }
-    
-    function isActiveUser() {
-      return isAuthenticated() && (
-        isSuperAdmin() || 
-        exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) &&
-        get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.status == 'active'
+        request.auth.token.email == 'martindperez@gmail.com' ||
+        request.auth.token.email.matches('(?i)^martindperez@gmail\\.com$')
       );
     }
     
