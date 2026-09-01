@@ -22,7 +22,7 @@
       }
     ],
     "usage": {
-      "input_tokens": 605,
+      "input_tokens": 250,
       "output_tokens": 37
     },
     "stop_reason": "end_turn"

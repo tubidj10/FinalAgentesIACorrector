@@ -22,7 +22,7 @@ prueba: 39/40 correctos con few-shot, 38/40 sin few-shot (una sola
 diferencia, un ticket ambiguo que un humano tampoco hubiera clasificado
 con seguridad). Decidimos sacar los ejemplos: la mejora de precisión no
 justificaba más que duplicar el costo por ticket. Esto es lo que hace que
-el input real de las corridas sea ~600 tokens y no ~1400.
+el input real de las corridas sea ~250 tokens y no ~1400.
 
 ## 3. Truncado de citas de hilos de mail largos
 

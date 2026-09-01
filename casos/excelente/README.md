@@ -48,21 +48,30 @@ cálculo de costo real).
 
 ## Análisis económico
 
-- Modelo: `claude-sonnet-5`. Costo tomado de `corridas/` real (promedio de
-  40 corridas de prueba): 620 tokens de entrada, 95 de salida por ticket
-  (el system prompt es corto porque no incluye ejemplos few-shot, ver
-  DECISIONES.md punto 2).
+- Modelo: `claude-sonnet-5`. Costo calculado sobre las 3 corridas
+  presentes en `corridas/` (las únicas que este repositorio puede
+  verificar — no se afirma un tamaño de muestra que no está incluido):
+  promedio de **250 tokens de entrada, 39 de salida** por ticket (el
+  system prompt es corto porque no incluye ejemplos few-shot, ver
+  DECISIONES.md punto 2; los 250 tokens de entrada surgen de contar los
+  caracteres reales de `prompts/system_prompt.md` + el user prompt
+  armado y convertirlos con la heurística ~3.5 caracteres/token — no es
+  el tokenizer real de Anthropic, y se declara así).
 - Precio de referencia usado para el cálculo (**verificar contra
   anthropic.com/pricing al momento de la entrega real, los precios
   cambian**): USD 3 / millón de tokens de entrada, USD 15 / millón de
   tokens de salida.
-- Costo por ticket: `(620/1e6)*3 + (95/1e6)*15 = 0.00186 + 0.001425 =
-  USD 0.0033`.
+- Costo por ticket: `(250/1e6)*3 + (39/1e6)*15 = 0.00075 + 0.000585 =
+  USD 0.0013`.
 - Volumen proyectado: 500 tickets/día declarados por el "cliente" de este
-  caso ficticio → `500 * 0.0033 * 365 = USD 602/año` en el caso base.
-- Caso peor (picos de fin de mes + 1 reintento en el 8% de los tickets por
-  rate limit, medido en las 40 corridas de prueba): `602 * 1.35 ≈ USD
-  813/año`. Rango declarado: **USD 600–815/año**, no un número único.
+  caso ficticio → `500 * 0.0013 * 365 = USD 237/año` en el caso base.
+- Caso peor (picos de fin de mes + 1 reintento en 1 de las 3 corridas de
+  muestra por rate limit — ver `corridas/2026-08-25-143012_run-014.json`
+  — proyectado como ~33% de corridas con un reintento extra si esa
+  proporción se sostiene, algo que 3 muestras no alcanzan para confirmar
+  con certeza): `237 * 1.33 ≈ USD 315/año`. Rango declarado: **USD
+  237–315/año**, no un número único, y con la salvedad explícita de que
+  la muestra es chica.
 
 ## Gobierno y riesgo
 
