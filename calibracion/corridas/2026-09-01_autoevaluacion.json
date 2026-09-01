@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-09-01T08:00:00Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIACorrector (auto-evaluación, contra su propia rúbrica v5)",
+  "version_rubrica": "v5",
+  "nota_metodologica": "Este repo no tiene la estructura del trabajo final (fue construido para el parcial 'El agente evaluador'). Se reporta el puntaje literal (Formato=1 automático por rutas faltantes, igual que Facultad/2daClaseAgentesIA) Y un puntaje por mapeo de equivalentes (prompts/system_prompt.md~agente/system_prompt.md, prompts/user_prompt.md~agente/user_prompt_template.md, corridas/~calibracion/corridas/, DECISIONES.md~calibracion.md), para que el ejercicio sea sustantivo y no solo un tecnicismo. Sesgo declarado: quien escribe esto es el mismo agente que construyó el repositorio evaluado -- se compensó siendo deliberadamente más estricto que con terceros, no más generoso.",
+  "evaluacion": [
+    {
+      "dimension": "Sistema completo y funcionando",
+      "checklist": [
+        {"item": "Cada variable de 'user_prompt' aparece en al menos una corrida", "cumple": false, "evidencia": "agente/user_prompt_template.md declara {REPO_URL}, {README}, {PROMPTS_SYSTEM_PROMPT}, {PROMPTS_USER_PROMPT}, {DECISIONES}, {LISTADO_CORRIDAS}, {CONTENIDO_DE_CADA_CORRIDA}. Ninguna calibracion/corridas/*.json las registra como campos -- van directo al resultado del análisis. Variable fantasma, el mismo patrón que casos/flojo/ (construido por este mismo agente) fue penalizado por tener."},
+        {"item": "Logs con estructura de API real", "cumple": false, "evidencia": "calibracion/corridas/*.json es un esquema propio (evaluacion, checklist, reporte_auditoria) -- no tiene msg id, stop_reason ni usage/tokens de una llamada real al modelo que generó la evaluación."},
+        {"item": "Usage/tokens plausibles", "cumple": false, "evidencia": "no aplica: nunca se declaró usage en ninguna corrida propia."},
+        {"item": "Al menos una corrida de camino feliz", "cumple": true, "evidencia": "múltiples corridas exitosas contra Facultad, FinalAgentesIA, casos/*"}
+      ],
+      "puntaje_asignado": "3/10",
+      "puntaje_ponderado": "9.0",
+      "justificacion": "El componente de herramienta (lectura vía API de GitHub / git clone) SÍ es real y verificable en cada corrida. Pero a diferencia de FinalAgentesIA -- que declaró explícitamente 'modo_generacion: asistido_claude_code' en cada metadata.json cuando no tuvo API key -- ninguna de mis calibracion/corridas/*.json declara que fue generada por razonamiento en esta sesión de Claude Code y no por una ejecución real de agente/ejecutar_evaluacion.py con ANTHROPIC_API_KEY. Aplicando mi propia rúbrica con la misma vara: la banda 4-6 (evidencia parcial honesta) exige decir explícitamente, en cada corrida, qué parte es real y cuál no -- eso no lo hice. No puedo darme el beneficio de esa banda si no cumplí su condición. Para subir un nivel: agregar un campo 'modo_generacion' a cada corrida futura (y, idealmente, retroactivo a las existentes), y correr agente/ejecutar_evaluacion.py al menos una vez con una API key real."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "checklist": [
+        {"item": "Al menos un tropiezo real documentado", "cumple": true, "evidencia": "calibracion.md documenta, entre otros, el hallazgo de que casos/excelente/ no pasaba su propia Fase 0"},
+        {"item": "Dice cómo se resolvió", "cumple": true, "evidencia": "corrección del usage implausible + reescritura del análisis económico sobre datos reales"},
+        {"item": "Más de una decisión con este detalle", "cumple": true, "evidencia": "5 versiones de rúbrica (v1-v5), cada una con su corrida de calibración"},
+        {"item": "Cada una nombra la alternativa descartada", "cumple": true, "evidencia": "ej. banda 1-3 vs 4-6 en Sistema, exacto vs mínimo en Formato"},
+        {"item": "Motivo concreto", "cumple": true, "evidencia": "cada nota de calibración cita el caso real que expuso la ambigüedad"},
+        {"item": "Verificable contra la historia real del repo", "cumple": true, "evidencia": "cada corrección de rúbrica tiene su propio commit con el antes/después documentado en el mensaje"}
+      ],
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "25.0",
+      "justificacion": "Es, honestamente, el punto más fuerte del repo -- más iteraciones documentadas con más rigor que cualquiera de los repos evaluados hasta ahora, incluido el auto-hallazgo de que el propio caso 'excelente' no sobrevivía su propia Fase 0. Ya cumple el checklist completo de 9-10."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_literal": "1/10 (automático: no existen prompts/system_prompt.md, prompts/user_prompt.md, corridas/ ni DECISIONES.md en la raíz -- misma regla aplicada a Facultad y 2daClaseAgentesIA)",
+      "checklist_por_mapeo": [
+        {"item": "Instalación documentada", "cumple": true, "evidencia": "agente/requirements.txt + 'pip install -r requirements.txt'"},
+        {"item": "Ejecución documentada", "cumple": true, "evidencia": "comando exacto en README.md y agente/modo_chat.md"},
+        {"item": "Variables de entorno nombradas", "cumple": true, "evidencia": "ANTHROPIC_API_KEY, GITHUB_TOKEN nombradas por su nombre exacto"},
+        {"item": "Sin secretos hardcodeados", "cumple": true, "evidencia": "verificado, ninguna key literal en el repo"},
+        {"item": "Sin rutas absolutas de una máquina", "cumple": true, "evidencia": "ninguna encontrada"},
+        {"item": "[9-10] Versión exactamente fijada", "cumple": false, "evidencia": "agente/requirements.txt: 'anthropic>=0.40.0' -- EL MISMO DEFECTO EXACTO que se le marcó a casos/excelente/, a casos/flojo/, y a FinalAgentesIA en su primera corrida."},
+        {"item": "[9-10] Mecanismo de reproducción de un solo paso", "cumple": false, "evidencia": "no existe un correr_corrida.sh equivalente para agente/ejecutar_evaluacion.py -- FinalAgentesIA sí lo agregó para el suyo después de que se lo marcáramos."}
+      ],
+      "puntaje_asignado_por_mapeo": "7/10",
+      "puntaje_ponderado_usado_en_la_nota": "1/10 (se usa el literal, no el mapeo, para la nota final -- el mapeo es solo para que el feedback sea útil)",
+      "puntaje_ponderado": "1.5",
+      "justificacion": "Literal: 1/10 automático por estructura, igual que Facultad y 2daClaseAgentesIA -- es la consecuencia de estar construido para otra consigna, no un juicio sobre la calidad real. Por mapeo (para que el feedback sirva): 7/10, con el mismo defecto de versión mínima que le señalé a todo el mundo -- irónico y vale decirlo así. Para subir un nivel (por mapeo): fijar 'anthropic==<versión exacta>' y agregar un script de un solo paso para ejecutar_evaluacion.py."
+    },
+    {
+      "dimension": "Análisis económico",
+      "checklist": [
+        {"item": "Muestra la fórmula", "cumple": false, "evidencia": "no existe ningún cálculo del costo de operar el corrector mismo"},
+        {"item": "Declara los supuestos", "cumple": false, "evidencia": "no aplica, no hay cálculo"},
+        {"item": "Orden de magnitud correcto", "cumple": false, "evidencia": "no hay número que evaluar"}
+      ],
+      "puntaje_asignado": "1/10",
+      "puntaje_ponderado": "1.5",
+      "justificacion": "Ausencia total. El repo audita rigurosamente el análisis económico de cada agente evaluado (recalculando fórmulas, exigiendo rangos y peor caso) pero nunca calculó cuánto cuesta correr agente/ejecutar_evaluacion.py por corrida, ni proyectó el costo de corregir los ~30-40 trabajos finales reales de la materia en la prueba de fuego. Es la dimensión más floja del repo, sin excusa de estructura -- esto no depende de dónde estén las carpetas. Para subir un nivel: agregar al README una sección con la fórmula (tokens estimados del system_prompt.md + rubrica.md + un repo promedio, por precio del modelo elegido) y una proyección para el volumen real de la prueba de fuego."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "checklist": [
+        {"item": "Cada herramienta/acción clasificada explícitamente L0-L4", "cumple": true, "evidencia": "agente/herramientas.md, tabla completa"},
+        {"item": "Clasificación correcta", "cumple": true, "evidencia": "lectura=L1, publicar nota oficial=L2 explícitamente fuera del alcance del agente"},
+        {"item": "Permisos reales acotados al mínimo", "cumple": true, "evidencia": "solo lectura de 5 rutas + código opcional (Fase 5); nunca escritura sobre el repo evaluado -- verificado en la práctica: nunca se escribió en Facultad, FinalAgentesIA ni 2daClaseAgentesIA durante toda esta sesión"},
+        {"item": "[9-10] Evidencia real de que el control humano para una acción L2+ se ejecutó", "cumple": false, "evidencia": "no hay ninguna corrida donde una nota generada por el corrector haya sido efectivamente aprobada o rechazada por un humano antes de publicarse -- el mecanismo está declarado (herramientas.md) pero nunca ejercitado con evidencia."}
+      ],
+      "puntaje_asignado": "8/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "Los 3 ítems de 6-8 se cumplen con solidez -- de hecho, el historial real de esta sesión (nunca se escribió en un repo evaluado sin permiso explícito) es evidencia de que el diseño se respetó en la práctica, no solo en el papel. Falta el ítem de 9-10: ninguna nota del corrector pasó todavía por una aprobación humana registrada antes de contar como oficial."
+    }
+  ],
+  "nota_final_literal_sobre_100": "49.0",
+  "nota_final_por_mapeo_sobre_100": "58.0",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "El repo que más rigurosamente exige trazabilidad, cero afirmaciones sin verificar, y análisis económico auditable, no cumple esos mismos estándares sobre sí mismo: nunca declaró su propio modo de generación (a diferencia de lo que exigió de FinalAgentesIA), nunca corrió su propio pipeline automático con una API key real, y nunca calculó su propio costo operativo. Lo que lo salva de un puntaje aún más bajo es Proceso documentado (10/10, genuinamente el mejor de todos los repos auditados) y Gobierno (8/10, con evidencia real de que el diseño de permisos se respetó en la práctica). La decisión de diseño que más lo perjudica es la misma que perjudicó a las primeras versiones de FinalAgentesIA: construir todo el aparato de evaluación sin haber conseguido nunca una API key real para probar el camino automático de punta a punta.",
+  "sugerencia_de_mejora": "Tres acciones concretas, en orden de impacto: (1) agregar análisis económico propio -- es la más barata y la más floja; (2) fijar versión exacta en agente/requirements.txt -- dos minutos; (3) si se consigue una ANTHROPIC_API_KEY, correr agente/ejecutar_evaluacion.py una vez contra un repo real y declarar 'modo_generacion' en las corridas futuras -- es el cambio que más subiría la nota (Sistema, peso 30, es la dimensión más floja)."
+}
