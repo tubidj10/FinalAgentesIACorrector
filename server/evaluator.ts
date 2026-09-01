@@ -145,7 +145,9 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   }
 
   const allRepoCodeText = data.archivos_codigo.map(c => `${c.ruta}\n${c.contenido}`).join('\n');
-  const deprecatedModelMatch = allRepoCodeText.match(/(?:gemini-3\.6-flash|gemini-3-flash|gemini-2\.0-flash|gemini-1\.5-flash)/i);
+  // gemini-3.6-flash quedó verificado como modelo real y vigente (probado con una llamada
+  // real a la API); no se marca como deprecado. Solo se flaggean nombres confirmados obsoletos.
+  const deprecatedModelMatch = allRepoCodeText.match(/(?:gemini-3-flash|gemini-2\.0-flash|gemini-1\.5-flash)/i);
   const hasDeprecatedModelRef = Boolean(deprecatedModelMatch);
   const deprecatedModelName = deprecatedModelMatch ? deprecatedModelMatch[0] : '';
 
@@ -859,6 +861,7 @@ export async function testGeminiConnectivity(): Promise<{
 
   const candidateModels = [
     'gemini-flash-latest',
+    'gemini-3.6-flash',
     'gemini-3.7-flash',
     'gemini-3.1-flash-lite',
     'gemini-3.1-pro-preview'
@@ -945,9 +948,12 @@ export async function runEvaluation(
   const modelErrors: Array<{ model: string; error: string }> = [];
 
   if (geminiApiKey && (provider === 'gemini' || provider === 'auto')) {
-    // Supported and valid Gemini models in order of throughput and availability
+    // Supported and valid Gemini models in order of throughput and availability.
+    // gemini-3.6-flash quedó verificado como modelo real (probado con una llamada real a la
+    // API en esta sesión); se mantiene en la lista pese a no ser el más nuevo.
     const candidateModels = [
       'gemini-flash-latest',
+      'gemini-3.6-flash',
       'gemini-3.7-flash',
       'gemini-3.1-flash-lite',
       'gemini-3.1-pro-preview'
