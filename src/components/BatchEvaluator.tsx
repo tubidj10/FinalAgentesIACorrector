@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Layers, 
   Play, 
@@ -13,6 +13,9 @@ import {
   CheckSquare,
   ShieldCheck,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
   Github,
   Zap
 } from 'lucide-react';
@@ -31,6 +34,9 @@ interface BatchItem {
   rawResult?: any;
 }
 
+type SortField = 'original' | 'label' | 'status' | 'nota_final' | 'd1' | 'd2' | 'd3' | 'd4' | 'd5';
+type SortDirection = 'asc' | 'desc';
+
 export const BatchEvaluator: React.FC = () => {
   const [inputText, setInputText] = useState(
 `# Pegá aquí un repositorio por línea o seleccioná los casos de la cursada
@@ -45,6 +51,10 @@ https://github.com/tubidj10/Facultad`
   const [isProcessing, setIsProcessing] = useState(false);
   const [concurrency, setConcurrency] = useState<number>(4);
   const [selectedItem, setSelectedItem] = useState<BatchItem | null>(null);
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('nota_final');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const defaultTemplates = [
     {
@@ -206,6 +216,90 @@ https://github.com/tubidj10/Facultad`
     ? (completedItems.reduce((acc, i) => acc + (i.nota_final || 0), 0) / completedItems.length).toFixed(1)
     : '0.0';
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction or reset
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      // Default to desc for numerical/grade fields, asc for text
+      if (['nota_final', 'd1', 'd2', 'd3', 'd4', 'd5'].includes(field)) {
+        setSortDirection('desc');
+      } else {
+        setSortDirection('asc');
+      }
+    }
+  };
+
+  const sortedItems = useMemo(() => {
+    if (sortField === 'original') return items;
+
+    return [...items].sort((a, b) => {
+      let valA: any = 0;
+      let valB: any = 0;
+
+      switch (sortField) {
+        case 'label':
+          valA = a.label.toLowerCase();
+          valB = b.label.toLowerCase();
+          return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
+        case 'status':
+          valA = a.status;
+          valB = b.status;
+          return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
+        case 'nota_final':
+          valA = a.nota_final ?? -1;
+          valB = b.nota_final ?? -1;
+          break;
+
+        case 'd1':
+          valA = Number(a.dimensiones?.[0]?.puntaje_ponderado ?? -1);
+          valB = Number(b.dimensiones?.[0]?.puntaje_ponderado ?? -1);
+          break;
+
+        case 'd2':
+          valA = Number(a.dimensiones?.[1]?.puntaje_ponderado ?? -1);
+          valB = Number(b.dimensiones?.[1]?.puntaje_ponderado ?? -1);
+          break;
+
+        case 'd3':
+          valA = Number(a.dimensiones?.[2]?.puntaje_ponderado ?? -1);
+          valB = Number(b.dimensiones?.[2]?.puntaje_ponderado ?? -1);
+          break;
+
+        case 'd4':
+          valA = Number(a.dimensiones?.[3]?.puntaje_ponderado ?? -1);
+          valB = Number(b.dimensiones?.[3]?.puntaje_ponderado ?? -1);
+          break;
+
+        case 'd5':
+          valA = Number(a.dimensiones?.[4]?.puntaje_ponderado ?? -1);
+          valB = Number(b.dimensiones?.[4]?.puntaje_ponderado ?? -1);
+          break;
+
+        default:
+          return 0;
+      }
+
+      if (sortDirection === 'asc') {
+        return valA > valB ? 1 : valA < valB ? -1 : 0;
+      } else {
+        return valA < valB ? 1 : valA > valB ? -1 : 0;
+      }
+    });
+  }, [items, sortField, sortDirection]);
+
+  const renderSortIndicator = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-70 transition ml-1 inline" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ChevronUp className="w-3.5 h-3.5 text-indigo-400 font-bold ml-1 inline" />
+      : <ChevronDown className="w-3.5 h-3.5 text-indigo-400 font-bold ml-1 inline" />;
+  };
+
   return (
     <div className="space-y-8">
       {/* Header Banner */}
@@ -364,21 +458,80 @@ https://github.com/tubidj10/Facultad`
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/40 text-slate-400 uppercase font-semibold">
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">Repositorio / Entrega</th>
-                  <th className="py-3 px-4">Estado</th>
-                  <th className="py-3 px-4">Nota Final</th>
-                  <th className="py-3 px-4 hidden md:table-cell">D1 (30%)</th>
-                  <th className="py-3 px-4 hidden md:table-cell">D2 (25%)</th>
-                  <th className="py-3 px-4 hidden md:table-cell">D3 (20%)</th>
-                  <th className="py-3 px-4 hidden md:table-cell">D4 (15%)</th>
-                  <th className="py-3 px-4 hidden md:table-cell">D5 (10%)</th>
+                <tr className="border-b border-slate-800 bg-slate-950/40 text-slate-400 uppercase font-semibold select-none">
+                  <th 
+                    onClick={() => handleSort('original')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition group"
+                  >
+                    <span>#</span>
+                    {sortField === 'original' && <span className="text-indigo-400 font-bold ml-1">•</span>}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('label')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition group"
+                  >
+                    <span>Repositorio / Entrega</span>
+                    {renderSortIndicator('label')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('status')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition group"
+                  >
+                    <span>Estado</span>
+                    {renderSortIndicator('status')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('nota_final')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition group bg-slate-900/40"
+                  >
+                    <span className="text-indigo-300 font-bold">Nota Final</span>
+                    {renderSortIndicator('nota_final')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('d1')}
+                    className="py-3 px-4 hidden md:table-cell cursor-pointer hover:text-slate-200 transition group"
+                    title="D1: Protocolo y Verificación (30%)"
+                  >
+                    <span>D1 (30%)</span>
+                    {renderSortIndicator('d1')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('d2')}
+                    className="py-3 px-4 hidden md:table-cell cursor-pointer hover:text-slate-200 transition group"
+                    title="D2: Arquitectura del Prompt (25%)"
+                  >
+                    <span>D2 (25%)</span>
+                    {renderSortIndicator('d2')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('d3')}
+                    className="py-3 px-4 hidden md:table-cell cursor-pointer hover:text-slate-200 transition group"
+                    title="D3: Ejecución y Trazabilidad (20%)"
+                  >
+                    <span>D3 (20%)</span>
+                    {renderSortIndicator('d3')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('d4')}
+                    className="py-3 px-4 hidden md:table-cell cursor-pointer hover:text-slate-200 transition group"
+                    title="D4: Calidad y Completitud (15%)"
+                  >
+                    <span>D4 (15%)</span>
+                    {renderSortIndicator('d4')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('d5')}
+                    className="py-3 px-4 hidden md:table-cell cursor-pointer hover:text-slate-200 transition group"
+                    title="D5: Autonomía y Gobernanza (10%)"
+                  >
+                    <span>D5 (10%)</span>
+                    {renderSortIndicator('d5')}
+                  </th>
                   <th className="py-3 px-4 text-right">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-sans">
-                {items.map((item, idx) => {
+                {sortedItems.map((item, idx) => {
                   const dims = item.dimensiones || [];
                   const isSelected = selectedItem?.id === item.id;
 

@@ -104,21 +104,46 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const missingFiles = data.archivos_faltantes;
   const hasAllFiles = missingFiles.length === 0;
 
-  // Check for Prompt Injections and Anti-fraud triggers
+  // Generalized Heuristic Checks and Anti-fraud triggers
   const allTexts = [readme, sysPrompt, userPrompt, decisiones, ...corridas.map(c => c.contenido)].join('\n');
-  const hasHtmlInjection = /<!--[\s\S]*?(?:ignora|system|evaluador|asignar|10\/10|nota para)[\s\S]*?-->/i.test(allTexts);
-  const hasZeroWidthOrRtl = /[\u200B-\u200D\uFEFF\u202E\u202D\u200E\u200F]/.test(allTexts);
-  const hasEmotionalManipulation = /(noches sin dormir|fines de semana enteros|dimos absolutamente todo|pedimos que se valore el esfuerzo)/i.test(readme);
-  const hasActiveContradiction = (
-    /5 sub-agentes/i.test(readme) && corridas.some(c => c.contenido.includes('Corrida 1:')) && !corridas.some(c => c.contenido.includes('request'))
-  );
+  
+  // 1. Prompt Injection / Jailbreak detection
+  const hasHtmlInjection = /<!--[\s\S]*?(?:ignora|ignore|system|evaluador|evaluadora|asignar|asigna|10\/10|100\/100|calificaci|override|prompt|bypass)[\s\S]*?-->/i.test(allTexts);
+  const hasDelimiterTampering = /<\/(?:archivo|directorio|user_prompt|system_prompt|user_data)>/i.test(readme) || /<\/(?:archivo|directorio)>/i.test(sysPrompt);
+  const hasImperativeOverride = /(?:asigna|poner|forzar)\s+(?:nota\s+)?(?:10|100|sobresaliente)|(?:ignora|desestima)\s+(?:las?\s+instrucciones|la\s+r[uú]brica)/i.test(allTexts);
+  
+  // 2. Unicode obfuscation (Zero-width, BOM, BiDi Overrides)
+  const hasZeroWidthOrRtl = /[\u200B-\u200D\uFEFF\u202E\u202D\u200E\u200F\u2060\u2061\u2062\u2063\u2064]/.test(allTexts);
+  
+  // 3. Emotional manipulation / Non-technical pressure (Appeals to pity / effort over evidence)
+  const hasEmotionalManipulation = /(?:noches\s+sin\s+dormir|fines\s+de\s+semana\s+enteros|dimos\s+absolutamente\s+todo|pedimos\s+que\s+se\s+valore\s+el\s+esfuerzo|valore[n]?\s+(?:el\s+)?esfuerzo|mucho\s+sacrificio|situaci[oó]n\s+personal|por\s+favor\s+apruebe[n]?|hicimos\s+lo\s+humana(?:mente)?\s+posible)/i.test(readme);
+  
+  // 4. Ghost Agents / Structural Contradiction: Claims multi-agent/swarm but provides only flat text or zero orchestration code
+  const claimsMultiAgent = /(\b\d+\s+sub-?agentes|\bswarm\b|\bmulti-?agente\b|\bmulti-?agent\b|\barquitectura\s+de\s+\d+\s+agentes\b)/i.test(readme);
+  const hasMultiAgentCodeOrTraces = data.archivos_codigo.some(c => /Agent|Swarm|sub_agent|workflow|orquestador|coordinator/i.test(c.contenido)) ||
+    corridas.some(c => /sub_agent|agent_id|herramienta|tool_calls|llamadas_herramienta/i.test(c.contenido));
+  const hasActiveContradiction = claimsMultiAgent && !hasMultiAgentCodeOrTraces && corridas.length > 0 && !corridas.some(c => c.contenido.includes('request') || c.contenido.includes('messages'));
 
-  const fraudTriggered = hasHtmlInjection || hasZeroWidthOrRtl || hasActiveContradiction;
+  // 5. Dependency Pinning Inconsistency (e.g. requirements.txt vs requirements.lock contradiction)
+  const reqTxt = data.archivos_codigo.find(c => c.ruta.endsWith('requirements.txt'))?.contenido || '';
+  const reqLock = data.archivos_codigo.find(c => c.ruta.endsWith('requirements.lock'))?.contenido || '';
+  let dependencyInconsistency = '';
+  if (reqTxt && reqLock) {
+    const txtAnthropic = reqTxt.match(/anthropic==([0-9.]+)/i)?.[1];
+    const lockAnthropic = reqLock.match(/anthropic==([0-9.]+)/i)?.[1];
+    if (txtAnthropic && lockAnthropic && txtAnthropic !== lockAnthropic) {
+      dependencyInconsistency = `Inconsistencia en dependencias fijadas: requirements.txt fija anthropic==${txtAnthropic} pero requirements.lock fija anthropic==${lockAnthropic}`;
+    }
+  }
+
+  const fraudTriggered = hasHtmlInjection || hasZeroWidthOrRtl || hasDelimiterTampering || hasImperativeOverride || hasActiveContradiction;
   const fraudReasons: string[] = [];
-  if (hasHtmlInjection) fraudReasons.push('Inyección directa de prompt oculta en comentario HTML de README.md intentando forzar 10/10.');
-  if (hasZeroWidthOrRtl) fraudReasons.push('Presencia de caracteres Unicode invisibles / homóglifos RTL de ofuscación.');
-  if (hasEmotionalManipulation) fraudReasons.push('Apelación directa a la simpatía / esfuerzo personal en README.md.');
-  if (hasActiveContradiction) fraudReasons.push('Contradicción activa: declara arquitectura enterprise multi-agente pero solo aporta log de texto plano simulado.');
+  if (hasHtmlInjection) fraudReasons.push('Inyección de prompt oculta en comentario HTML intentando alterar la rúbrica o evaluación.');
+  if (hasDelimiterTampering) fraudReasons.push('Manipulación de delimitadores estructurales XML para escapar etiquetas de contención.');
+  if (hasImperativeOverride) fraudReasons.push('Comando imperativo explícito intentando forzar nota o ignorar directivas del evaluador.');
+  if (hasZeroWidthOrRtl) fraudReasons.push('Presencia de caracteres Unicode invisibles (zero-width) o directivas de ofuscación RTL.');
+  if (hasEmotionalManipulation) fraudReasons.push('Apelación directa a la simpatía o esfuerzo personal en la documentación técnica.');
+  if (hasActiveContradiction) fraudReasons.push('Contradicción estructural: declara arquitectura multi-agente pero no aporta código de orquestación ni trazas transaccionales.');
 
   // If Fraud Triggered -> 1/10 across all dimensions
   if (fraudTriggered) {
@@ -139,11 +164,10 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       fase0: {
         afirmaciones_verificadas: [],
         afirmaciones_no_verificadas: [
-          { afirmacion: '99.9% precisión enterprise con 5 agentes', motivo: 'Refutado por ausencia de logs transaccionales reales.' },
-          { afirmacion: 'Costo de USD 2/año', motivo: 'Sin desglose ni fórmula matemática verificable.' }
+          { afirmacion: 'Arquitectura declarada en README', motivo: 'Refutado por inconsistencias o ausencia de trazas reales.' }
         ],
         inconsistencias: [
-          { descripcion: 'Intento de manipulación de prompt detectado en README.md', archivos_involucrados: ['README.md'], severidad: 'fraude' }
+          { descripcion: fraudReasons.join(' | '), archivos_involucrados: ['README.md'], severidad: 'fraude' }
         ]
       },
       dimensiones,
@@ -158,8 +182,8 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
           {
             archivo: 'README.md',
             tipo: 'seguridad',
-            descripcion: 'Comentario HTML con directivas de prompt injection detectado en el repositorio.',
-            sugerencia: 'Eliminar comentarios orientados a manipular evaluadores automáticos.'
+            descripcion: 'Patrones de evasión o inyección de prompt detectados en el repositorio.',
+            sugerencia: 'Eliminar comentarios y directivas orientadas a manipular evaluadores automáticos.'
           }
         ],
         resumen: 'Repositorio rechazado por intento de manipulación y evidencia contradictoria.'
@@ -360,7 +384,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     const hasExactDeps = /==/.test(repoAllContent) || /"dependencies"/.test(repoAllContent) || data.archivos_codigo.some(c => c.ruta.includes('requirements.txt'));
     const hasSingleStepScript = /correr|run|ejecutar|npm start|python3|\.sh\b/i.test(readme) || data.archivos_codigo.some(c => c.ruta.endsWith('.sh'));
 
-    if (hasExactDeps && hasSingleStepScript) {
+    if (hasExactDeps && hasSingleStepScript && !dependencyInconsistency) {
       d3Score = 10;
       d3Checklist = [
         { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias verificadas." },
@@ -368,8 +392,19 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { item: "Ejecución documentada con comando exacto", cumple: true, evidencia: "Comando de ejecución detallado en README.md." },
         { item: "Variables de entorno nombradas por su nombre exacto", cumple: true, evidencia: "Variables declaradas sin secretos en texto plano." },
         { item: "Sin rutas absolutas dependientes de una máquina", cumple: true, evidencia: "Rutas relativas verificadas." },
-        { item: "Dependencias con versión exactamente fijada", cumple: true, evidencia: "Versiones fijadas con precisión." },
+        { item: "Dependencias con versión exactamente fijada y coherente", cumple: true, evidencia: "Versiones fijadas con precisión sin discordancias en lockfiles." },
         { item: "Mecanismo de reproducción de un solo paso", cumple: true, evidencia: "Flujo automatizado reproducible con script de ejecución." }
+      ];
+    } else if (hasExactDeps && hasSingleStepScript && dependencyInconsistency) {
+      d3Score = 8;
+      d3Checklist = [
+        { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias presentes." },
+        { item: "Instalación documentada", cumple: true, evidencia: "Comandos de instalación claros." },
+        { item: "Ejecución documentada", cumple: true, evidencia: "Script ejecutable presente." },
+        { item: "Variables de entorno nombradas", cumple: true, evidencia: "Nombres de variables expuestos correctamente." },
+        { item: "Sin rutas absolutas locales", cumple: true, evidencia: "Rutas relativas verificadas." },
+        { item: "Dependencias con versión exactamente fijada y coherente", cumple: false, evidencia: dependencyInconsistency },
+        { item: "Mecanismo de reproducción de un solo paso", cumple: true, evidencia: "Reproducible en un solo paso." }
       ];
     } else {
       d3Score = 7;
@@ -379,7 +414,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { item: "Ejecución documentada", cumple: true, evidencia: "Comandos documentados." },
         { item: "Variables de entorno nombradas", cumple: true, evidencia: "Nombres de variables expuestos correctamente." },
         { item: "Sin rutas absolutas locales", cumple: true, evidencia: "Sin rutas locales fijas." },
-        { item: "Dependencias con versión exactamente fijada (==)", cumple: false, evidencia: "Declara rangos mínimos (>=) o sin lockfile exacto." },
+        { item: "Dependencias con versión exactamente fijada (==)", cumple: false, evidencia: dependencyInconsistency || "Declara rangos mínimos (>=) o sin lockfile exacto." },
         { item: "Mecanismo de reproducción de un solo paso", cumple: false, evidencia: "Requiere múltiples pasos manuales sin script wrapper." }
       ];
     }
@@ -393,13 +428,17 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d3Checklist,
     puntaje_asignado: `${d3Score}/10`,
     puntaje_ponderado: d3Pond.toFixed(1),
-    escala_elegida: d3Score === 10 ? "EXCELENTE (10/10)" : d3Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
-    evidencia_citada: "5 rutas obligatorias presentes en la raíz, requirements con versiones fijadas y comandos de un solo paso en README.md",
+    escala_elegida: d3Score === 10 ? "EXCELENTE (10/10)" : d3Score >= 8 ? "SOBRESALIENTE (8/10)" : d3Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
+    evidencia_citada: dependencyInconsistency ? `Alerta: ${dependencyInconsistency}` : "5 rutas obligatorias presentes en la raíz, requirements con versiones fijadas y comandos de un solo paso en README.md",
     sugerencia_concreta: d3Score === 10
-      ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas."
+      ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas y coherentes."
+      : dependencyInconsistency
+      ? "Para subir a 10/10: Corregir la discordancia entre requirements.txt y requirements.lock sincronizando la versión fijada de la librería."
       : "Para subir a 10/10: Fijar dependencias exactas con '==' en requirements.txt y documentar un comando único de ejecución sin pasos manuales externos.",
     justificacion: d3Score === 1
       ? `Penalización automática de 1/10 por falta de rutas obligatorias en la raíz: ${missingFiles.join(', ')}. Para subir un nivel: Asegurar que existan README.md, prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md en la raíz.`
+      : dependencyInconsistency
+      ? `Estructura y scripts correctos, pero se detectó: ${dependencyInconsistency}. Sincronizar lockfile y manifest para alcanzar 10/10.`
       : d3Score >= 9.5
       ? "Estructura impecable (10/10) con las 5 rutas en la raíz, dependencias fijadas y comandos de ejecución sin secretos expuestos. Cumple el checklist completo de 9–10."
       : "Cumple las 5 rutas y la guía de instalación. Para subir un nivel: Fijar versiones exactas con '==' en dependencias y proveer un script de ejecución en un solo paso."
@@ -516,6 +555,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
 
   const forensicAudit = runForensicAudit(data);
 
+  const fase0Inconsistencias: any[] = [];
+  if (dependencyInconsistency) {
+    fase0Inconsistencias.push({
+      descripcion: dependencyInconsistency,
+      archivos_involucrados: ['agente/requirements.txt', 'agente/requirements.lock'],
+      severidad: 'media'
+    });
+  }
+
   return {
     fase0: {
       afirmaciones_verificadas: [
@@ -523,7 +571,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { afirmacion: "Modelo utilizado", cita: "Declarado en prompts/ y README", archivo: "README.md" }
       ],
       afirmaciones_no_verificadas: [],
-      inconsistencias: []
+      inconsistencias: fase0Inconsistencias
     },
     dimensiones,
     nota_final: Math.round(notaFinal * 10) / 10,
@@ -759,9 +807,11 @@ export async function runEvaluation(
   const geminiApiKey = process.env.GEMINI_API_KEY;
 
   if (geminiApiKey && (provider === 'gemini' || provider === 'auto')) {
+    // Current active Gemini models in @google/genai
     const candidateModels = [
+      'gemini-3.7-flash',
       'gemini-2.5-flash',
-      'gemini-2.0-flash'
+      'gemini-flash-latest'
     ];
 
     const ai = new GoogleGenAI({
@@ -773,9 +823,11 @@ export async function runEvaluation(
       }
     });
 
+    const modelErrors: Array<{ model: string; error: string }> = [];
+
     for (const modelName of candidateModels) {
       try {
-        // Strict 10-second timeout per model attempt to guarantee fast response
+        // Strict 15-second timeout per model attempt
         const generatePromise = ai.models.generateContent({
           model: modelName,
           contents: [
@@ -789,7 +841,7 @@ export async function runEvaluation(
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout de API Gemini excedido (10s)')), 10000)
+          setTimeout(() => reject(new Error('Timeout de API Gemini excedido (15s)')), 15000)
         );
 
         const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
@@ -812,6 +864,7 @@ export async function runEvaluation(
           modo_generacion: 'automatico_gemini_api',
           proveedor: 'gemini',
           modelo: modelName,
+          llm_exitoso: true,
           request: {
             system_prompt_sha256: sha256(systemPrompt),
             user_prompt_sha256: sha256(userPrompt),
@@ -841,8 +894,10 @@ export async function runEvaluation(
         evaluationResultsCache.set(cacheKey, { result, expiresAt: now + 3 * 60 * 1000 });
         return result;
       } catch (e: any) {
-        // Continue to fallback
-        break;
+        console.warn(`[Evaluator] Intento con modelo ${modelName} falló:`, e.message || e);
+        modelErrors.push({ model: modelName, error: e.message || String(e) });
+        // Continue trying next candidate model
+        continue;
       }
     }
   }
@@ -852,11 +907,16 @@ export async function runEvaluation(
   const evaluacion = evaluateDeterministically(data);
   const rawText = JSON.stringify(evaluacion, null, 2);
 
+  const motivoFallback = !geminiApiKey
+    ? 'GEMINI_API_KEY no configurada en el entorno'
+    : 'Modelos Gemini no respondieron o excedieron timeout; se aplicó el motor determinista de respaldo calibrado con la Rúbrica v5';
+
   const log = {
     timestamp: new Date().toISOString(),
     repositorio_evaluado: data.url,
     modo_generacion: 'calibrado_determinista',
     modo_generacion_nota: 'Evaluación ejecutada mediante el motor de reglas calibrado de Rúbrica v5 con auditoría cruzada de Fase 0.',
+    motivo_fallback: motivoFallback,
     proveedor: 'sistema_evaluador',
     modelo: 'rubrica-v5-engine',
     request: {

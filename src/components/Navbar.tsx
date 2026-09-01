@@ -57,15 +57,25 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
         <div className="flex items-center justify-between h-16">
           
           {/* Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('evaluador')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold">
-              <Scale className="w-5 h-5" />
+          <div className="flex items-center space-x-3.5 cursor-pointer" onClick={() => setActiveTab('evaluador')}>
+            <div className="flex items-center space-x-2">
+              <div className="h-10 px-2.5 py-1 rounded-xl bg-white/95 border border-slate-700 flex items-center justify-center shadow-md shadow-black/30 shrink-0">
+                <img 
+                  src="https://ucema.edu.ar/sites/default/files/inline-images/primario_1.png" 
+                  alt="UCEMA Universidad del CEMA" 
+                  className="h-7 w-auto object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold shrink-0">
+                <Scale className="w-5 h-5" />
+              </div>
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span className="font-bold text-lg text-slate-100 tracking-tight">El Agente Evaluador</span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  Rúbrica v5
+                  Rúbrica v5.2
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-medium">MBA UCEMA · Programación con Agentes de IA</p>

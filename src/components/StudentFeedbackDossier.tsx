@@ -165,8 +165,16 @@ export const StudentFeedbackDossier: React.FC<StudentFeedbackDossierProps> = ({ 
     <div className="bg-slate-900/90 rounded-2xl border border-indigo-500/30 overflow-hidden shadow-2xl space-y-6 p-6">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold">
+        <div className="flex items-center space-x-3.5">
+          <div className="h-10 px-2.5 py-1 rounded-xl bg-white/95 border border-slate-700 flex items-center justify-center shadow-md shadow-black/30 shrink-0">
+            <img 
+              src="https://ucema.edu.ar/sites/default/files/inline-images/primario_1.png" 
+              alt="UCEMA" 
+              className="h-7 w-auto object-contain"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold shrink-0">
             <FileText className="w-5 h-5" />
           </div>
           <div>
@@ -179,7 +187,7 @@ export const StudentFeedbackDossier: React.FC<StudentFeedbackDossierProps> = ({ 
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Informe consolidado con todo lo que se analizó, las evidencias citadas y los pasos exactos para subir la nota.
+              MBA UCEMA · Informe consolidado con evidencias citadas, controles forenses y pasos hacia el 10.
             </p>
           </div>
         </div>

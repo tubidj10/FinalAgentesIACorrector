@@ -5,30 +5,39 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isSuperAdmin() {
       return isAuthenticated() && (
         request.auth.token.email == 'martindperez@gmail.com' ||
         request.auth.token.email.matches('(?i)^martindperez@gmail\\.com$')
       );
     }
-    
-    // Users collection
+
+    // Users collection: PII isolation - users only read their own profile, admin reads all
     match /users/{userEmail} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || 
+        request.auth.token.email.lower() == userEmail.lower()
+      );
       allow write: if isSuperAdmin();
     }
     
-    // Access requests
+    // Access requests collection: Users can only create and read their own access request
     match /access_requests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.email.lower() == request.auth.token.email.lower()
+      );
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || 
+        resource.data.email.lower() == request.auth.token.email.lower()
+      );
       allow update, delete: if isSuperAdmin();
     }
 
-    // Default rule
+    // Default rule: Catch-all lock
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
   }
 }
+
