@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-08-27T10:02:00Z",
+  "request": {
+    "model": "claude-sonnet-5",
+    "parameters": {
+      "CLIENTE_ID": "c-4021",
+      "TICKET_TEXTO": "no me anda el login desde ayer"
+    }
+  },
+  "response": {
+    "content": [
+      { "type": "text", "text": "{\"prioridad\": \"urgente\", \"area\": \"cuenta\"}" }
+    ],
+    "usage": { "input_tokens": 210, "output_tokens": 20 }
+  }
+}

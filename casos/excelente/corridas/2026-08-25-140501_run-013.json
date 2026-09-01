@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-08-25T14:05:01Z",
+  "run_id": "run-013",
+  "request": {
+    "model": "claude-sonnet-5",
+    "temperature": 0,
+    "max_tokens": 200,
+    "parameters": {
+      "CANAL": "email",
+      "CLIENTE_ID": "c-88213",
+      "IDIOMA": "es",
+      "TICKET_TEXTO": "Me cobraron dos veces la suscripcion de agosto, necesito que me devuelvan uno de los dos cargos ya."
+    }
+  },
+  "response": {
+    "id": "msg_01Xk3vQY7pR2mNfT8sJhLwZa",
+    "model": "claude-sonnet-5",
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"prioridad\": \"urgente\", \"area\": \"facturacion\", \"resumen\": \"Cobro duplicado de suscripcion de agosto, pide reembolso de un cargo.\"}"
+      }
+    ],
+    "usage": {
+      "input_tokens": 611,
+      "output_tokens": 41
+    },
+    "stop_reason": "end_turn"
+  },
+  "validacion_schema": "OK",
+  "latencia_ms": 812
+}

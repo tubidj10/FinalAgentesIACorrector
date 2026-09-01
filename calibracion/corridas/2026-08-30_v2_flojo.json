@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-08-30T09:00:00Z",
+  "repositorio_evaluado": "casos/flojo/",
+  "version_rubrica": "v2 (después de la aclaración de calibración en la Dimensión 4)",
+  "cambios_respecto_a_v1": [
+    {
+      "dimension": "Análisis económico",
+      "puntaje_v1": "3/10",
+      "puntaje_v2": "4/10",
+      "motivo": "rubrica.md se aclaró: una afirmación vaga pero de orden de magnitud plausible (una sola llamada simple por ticket, 'unos centavos al mes') no es 1-3 -- el 1-3 es para ausencia total o discrepancia de orden de magnitud verificable. El defecto real acá es la falta de fórmula/supuestos, que es exactamente la definición de 4-5."
+    }
+  ],
+  "evaluacion": [
+    { "dimension": "Sistema completo y funcionando", "puntaje_asignado": "4/10", "puntaje_ponderado": "12.0", "justificacion": "Sin cambios respecto a v1: variable CANAL fantasma, sin caso de error documentado." },
+    { "dimension": "Proceso documentado", "puntaje_asignado": "5/10", "puntaje_ponderado": "12.5", "justificacion": "Sin cambios respecto a v1: éxito lineal sin tropiezos, techo duro de 5." },
+    { "dimension": "Formato y reproducibilidad", "puntaje_asignado": "4/10", "puntaje_ponderado": "6.0", "justificacion": "Sin cambios respecto a v1: sin requirements.txt ni versión de Python documentada." },
+    { "dimension": "Análisis económico", "puntaje_asignado": "4/10", "puntaje_ponderado": "6.0", "justificacion": "Corregido tras calibración: 'unos centavos al mes' para una arquitectura de una sola llamada simple es de orden de magnitud plausible, pero no auditable (sin fórmula ni supuestos) -> 4-5, no 1-3." },
+    { "dimension": "Gobierno y riesgo", "puntaje_asignado": "4/10", "puntaje_ponderado": "6.0", "justificacion": "Sin cambios respecto a v1." }
+  ],
+  "nota_final_sobre_100": "42.5",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Sin cambios en el veredicto general (no aprobado sin revisión), la corrección de calibración solo ajusta 1.5 puntos porcentuales -- confirma que el ajuste a la rúbrica fue una corrección de precisión puntual, no un cambio que altere el resultado cualitativo del caso.",
+  "sugerencia_de_mejora": "Igual que en v1."
+}
