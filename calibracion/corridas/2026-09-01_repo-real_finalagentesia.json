@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-09-01T00:00:00Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA",
+  "version_rubrica": "v3 (incluye la aclaración de la banda 4-6 en Dimensión 1, agregada durante esta misma corrida)",
+  "nota_metodologica": "Segunda validación contra un repo real y externo (el trabajo final real de la materia, no un caso de prueba construido para este parcial). Se detectó durante esta corrida una laguna real en rubrica.md v2: no distinguía 'evidencia parcial honesta y verificable' de 'narración sin evidencia'. Se corrigió la rúbrica antes de cerrar el puntaje (ver rubrica.md, Dimensión 1).",
+  "extraccion_real_via_git": {
+    "README.md": "presente",
+    "prompts/system_prompt.md": "presente",
+    "prompts/user_prompt.md": "presente",
+    "corridas/": "presente, 3 corridas completas (input.json, llamadas_herramienta.json, output_crudo.json, metadata.json cada una)",
+    "DECISIONES.md": "presente"
+  },
+  "evaluacion": [
+    {
+      "dimension": "Sistema completo y funcionando",
+      "puntaje_asignado": "5/10",
+      "puntaje_ponderado": "15.0",
+      "justificacion": "Las 6 variables de prompts/user_prompt.md (alerta_id, servicio, metrica, valor_actual, umbral, timestamp) aparecen consistentes en las 3 corridas. La llamada a la herramienta consultar_api_monitoreo es real y reproducible (llamadas_herramienta.json documenta un HTTP real, incluido un 404 real en corrida_03, verificable con curl). PERO la llamada al LLM -- el componente central del sistema -- nunca se ejecutó contra la API real de Anthropic en ninguna de las 3 corridas: metadata.json de cada una declara 'modo_generacion: asistido_claude_code', respaldado por un traceback real (AuthenticationError) en DECISIONES.md iteracion 1. Es evidencia honesta y parcial, no narracion -- banda 4-6, techo 6 por definicion (el sistema no llego a correr de punta a punta con una llamada real al LLM en ningun caso)."
+    },
+    {
+      "dimension": "Proceso documentado",
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "25.0",
+      "justificacion": "DECISIONES.md, iteracion 1: reproduce el error real (traceback de TypeError, despues AuthenticationError con una key invalida a proposito para aislar la causa) antes de decidir 'triage_agent.py falla cerrado, a proposito'. Iteracion 2: descarta una variante de prompt de lote y deja el archivo descartado versionado (prompts/user_prompt_variante_lote.md) como evidencia tangible. Iteracion 3: documenta un limite de diseno (el enum de severidad no tiene 'no determinable') que decide NO resolver y explica por que, en vez de esconderlo."
+    },
+    {
+      "dimension": "Formato y reproducibilidad",
+      "puntaje_asignado": "8/10",
+      "puntaje_ponderado": "12.0",
+      "justificacion": "Las 5 rutas obligatorias existen. Cada corrida trae en metadata.json los pasos exactos ('reconstruible_con') incluyendo comandos curl verificables byte a byte. Techo en 8, no 9-10: agente/requirements.txt fija 'anthropic>=0.69' (rango minimo, no version exacta) -- mismo criterio aplicado en calibracion.md a casos/excelente/."
+    },
+    {
+      "dimension": "Análisis económico",
+      "puntaje_asignado": "9/10",
+      "puntaje_ponderado": "13.5",
+      "justificacion": "README.md, seccion Analisis economico: formula explicita, conteo de caracteres reales de la corrida 1 convertido a tokens con una heuristica declarada como aproximacion (no el tokenizer real, y dice por que: sin API key no pudo correr count_tokens()), tabla comparativa de 3 modelos, y proyeccion en 2 escalas de volumen (150 y 5000 alertas/semana) con una justificacion no trivial de por que el modelo mas chico alcanza. No modela explicitamente un 'peor caso' (picos, reintentos) como pide la banda 9-10 al pie de la letra, de ahi el punto que falta para 10."
+    },
+    {
+      "dimension": "Gobierno y riesgo",
+      "puntaje_asignado": "10/10",
+      "puntaje_ponderado": "15.0",
+      "justificacion": "Vocabulario L0-L4 mapeado con precision a acciones reales (L2 para publicar en el canal, L1 automatico si confianza<0.5), tabla de permisos por sistema (monitoreo=solo lectura, canal=escritura acotada, produccion=ninguno), tabla de riesgos con mitigacion por cada uno. Evidencia real en corridas/: corrida_03/output_crudo.json tiene nivel_autonomia='L1' porque confianza=0.3, ejecutando en los hechos la politica declarada, no solo describiendola."
+    }
+  ],
+  "nota_final_sobre_100": "80.5",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Aprobado para pase a produccion con una brecha clara y unica: el pipeline de razonamiento del LLM nunca corrio contra la API real en ninguna de las 3 corridas de evidencia. Lo que salva la calificacion es que esa brecha esta documentada con evidencia real (un traceback autentico, no una afirmacion) en vez de disimulada -- exactamente la diferencia que la banda 4-6 de esta rubrica (aclarada durante esta misma corrida) existe para reconocer. Lo que la hunde por debajo de sobresaliente es esa misma brecha en la dimension de mayor peso (30): por mas honesta que este documentada, el sistema completo -- incluida la decision del LLM, no solo la llamada a la herramienta -- nunca corrio de punta a punta con datos reales. Gobierno y riesgo y Proceso documentado son sobresalientes sin reservas.",
+  "sugerencia_de_mejora": "Conseguir una ANTHROPIC_API_KEY (aunque sea de un plan personal, con limite de gasto bajo) y correr agente/triage_agent.py una sola vez sobre las 3 alertas de corridas/ antes de la entrega final -- el propio script y las instrucciones de reconstruccion en cada metadata.json ya estan listas para eso, es la unica pieza que falta para que Sistema completo pase de 5 a 8-9."
+}

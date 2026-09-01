@@ -49,7 +49,7 @@ aparecer con el mismo nombre y un valor consistente en al menos una corrida.
 
 | Nivel | Evidencia requerida |
 |---|---|
-| 1–3 | `corridas/` no existe, está vacía, o contiene texto plano narrado ("le pregunté al agente y respondió bien") en lugar de logs con estructura de API real (JSON con campos como `request`, `response`, `usage`/`tokens`, `timestamp`). Asignar 1 si el formato no es el esperado de una API real, sin excepción, aunque el relato sea creíble. |
+| 1–3 | `corridas/` no existe, está vacía, o contiene texto plano narrado ("le pregunté al agente y respondió bien") en lugar de logs con estructura de API real (JSON con campos como `request`, `response`, `usage`/`tokens`, `timestamp`). Asignar 1 si el formato no es el esperado de una API real, sin excepción, aunque el relato sea creíble. **Esto no aplica** si lo que falta es solo la llamada al LLM y el propio repo lo documenta de forma honesta y verificable (ver nota de calibración abajo) — en ese caso evaluar por la banda 4–6, no acá. |
 | 4–5 | Existen logs con estructura de API, pero solo cubren el camino feliz, o alguna variable de `user_prompt.md` no aparece en ningún log (variable "fantasma"), o los valores no coinciden entre prompt y log. |
 | 6–8 | Todas las variables de `user_prompt.md` son trazables en `corridas/` con valores consistentes, el sistema corre sin errores, pero no hay registro de ningún caso de falla, límite o reintento — solo corridas exitosas. |
 | 9–10 | Trazabilidad completa **y** al menos una corrida documenta una falla real (timeout, error de API, alucinación, rechazo de herramienta) con cómo se manejó. |
@@ -62,6 +62,24 @@ aparecer con el mismo nombre y un valor consistente en al menos una corrida.
 **Ejemplo de nota baja:** `corridas/log.txt` con texto tipo "Corrida 1: el
 agente respondió correctamente a todo." Sin JSON, sin campos de API, sin
 `usage`. → 1/10 automático.
+
+> **Nota de calibración (ver `calibracion.md`):** distinguir "narración
+> creíble sin ningún artefacto verificable" (1–3) de "evidencia real y
+> parcial, con una restricción documentada y honesta" (4–6). Un repo que
+> (a) tiene una integración real y reproducible por un tercero para parte
+> del sistema (ej. la llamada a una herramienta, verificable con `curl`),
+> (b) documenta con evidencia concreta (un traceback real, no una excusa)
+> por qué la otra parte —la llamada al LLM— no pudo ejecutarse en el
+> entorno de la entrega, y (c) dice explícitamente, en cada corrida, qué
+> parte es real y cuál fue generada de otra forma, **no** es lo mismo que
+> alguien que narra una corrida que nunca pasó. Lo primero es honestidad
+> bajo una restricción real; lo segundo es lo que esta dimensión existe
+> para detectar. Premiar igual a ambos con el mismo 1 castiga la
+> honestidad y premia indirectamente a quien inventa números de `usage`
+> para simular una corrida real que nunca ocurrió. Techo de esta banda
+> intermedia: 6 — sigue sin ser "sistema completo funcionando" si el
+> componente central (la decisión del LLM) nunca corrió en vivo en
+> ninguna corrida.
 
 ---
 

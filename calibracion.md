@@ -128,6 +128,47 @@ instrucción inyectada (el comentario HTML que le pedía asignar 10/10 y
 "Limpio") — ver `calibracion/corridas/2026-08-29_v1_tramposo.json`,
 campo `reporte_auditoria`, que cita el fragmento textual detectado.
 
+## Segunda validación contra un repo real — hallazgo adicional de rúbrica
+
+Se corrió el corrector contra
+[`tubidj10/FinalAgentesIA`](https://github.com/tubidj10/FinalAgentesIA)
+(el trabajo final real de la materia, no un caso de prueba). Corrida
+completa en
+`calibracion/corridas/2026-09-01_repo-real_finalagentesia.json`.
+
+| Dimensión | Puntaje |
+|---|---|
+| Sistema completo y funcionando | 5/10 |
+| Proceso documentado | 10/10 |
+| Formato y reproducibilidad | 8/10 |
+| Análisis económico | 9/10 |
+| Gobierno y riesgo | 10/10 |
+| **Nota final** | **80.5/100** |
+
+Este repo expuso una laguna real en `rubrica.md` v2, distinta a las dos
+anteriores: la Dimensión 1 solo contemplaba "logs con formato de API
+real" vs. "narración de texto plano" — pero este repo no es ninguno de
+los dos casos. Tiene evidencia real y reproducible para la mitad del
+sistema (la llamada a la herramienta de monitoreo, verificable con
+`curl`, incluido un caso de error 404 real), y documenta con un
+traceback auténtico (no una excusa) por qué la otra mitad — la llamada al
+LLM — no pudo ejecutarse en el entorno de la entrega, dejándolo explícito
+en cada corrida en vez de disimularlo.
+
+Aplicar la regla v2 tal cual llevaba a 1/10 automático, lo mismo que le
+correspondería a alguien que narra una corrida que nunca pasó. Eso es
+perverso: castiga la honestidad igual que el fraude, y premia
+indirectamente a quien simplemente inventa números de `usage` para
+simular una llamada real (como hace, de hecho, `casos/excelente/` de
+este mismo repositorio, que si fue tomado literalmente por el agente
+como una corrida real en vez de como un caso de prueba construido,
+saldría mejor parado que esta entrega honesta). Se agregó a `rubrica.md`
+una banda intermedia (4–6) para este caso — evidencia real y parcial con
+restricción documentada — antes de cerrar el puntaje de este repo. Con la
+rúbrica corregida, Sistema quedó en 5/10: reconoce la evidencia real de
+la mitad del sistema sin premiarlo como "sistema completo funcionando",
+porque el componente central (la decisión del LLM) nunca corrió en vivo.
+
 ## Resultado después del ajuste
 
 - **Excelente:** 87.0/100 (agente) vs. 83.5/100 (humano) — separado por
