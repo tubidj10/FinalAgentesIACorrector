@@ -33,6 +33,14 @@ cada puntaje mirando exactamente la misma evidencia.
    haría falta agregar al repositorio — no una recomendación genérica. Un
    corrector que dice "está bien pero le falta profundidad" sin decir en
    qué archivo y con qué dato exacto no cumplió esta rúbrica.
+8. Además de las 5 dimensiones puntuadas, el corrector produce una
+   `revision_de_codigo` (ver `agente/system_prompt.md`, Fase 5) leyendo el
+   código de implementación real del agente evaluado — **esto no forma
+   parte de la nota**, es feedback adicional para que el alumno mejore su
+   código concreto. Separar esto de la nota es deliberado: la nota tiene
+   que seguir siendo reproducible únicamente a partir de las 5 rutas
+   obligatorias, sin depender de qué tan explorable resultó ser el resto
+   del repositorio.
 
 ## Fase 0 — Verificación cruzada obligatoria (antes de puntuar)
 

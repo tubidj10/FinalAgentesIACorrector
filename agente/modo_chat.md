@@ -24,6 +24,10 @@ etc.). Es el mismo mecanismo que se usó para las corridas de
    Code tiene acceso directo a la API de GitHub; en un chat sin esa
    herramienta, pedile que traiga cada archivo desde su URL "raw"
    (`https://raw.githubusercontent.com/<owner>/<repo>/<rama>/<ruta>`).
+   Pedile además que abra el código de implementación del repositorio
+   (fuera de esas 5 rutas) para completar la Fase 5 (revisión de código,
+   no puntuada) — no hace falta que sea exhaustivo, con lo que encuentre
+   alcanza.
 4. El modelo va a devolver el JSON de evaluación definido en la Fase 4 de
    `system_prompt.md`. Si devuelve texto extra alrededor del JSON,
    pedile que lo repita "solo el JSON, sin texto adicional" — es

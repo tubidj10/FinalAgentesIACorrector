@@ -10,11 +10,28 @@ El corrector necesita exactamente dos capacidades, ninguna más:
    iterar los archivos dentro de `corridas/`, ya que su cantidad y
    nombres varían por entrega).
 
-No necesita, y no debe tener, ninguna otra herramienta: no escribe en el
-repositorio evaluado, no ejecuta código del alumno, no tiene acceso a
-Internet más allá de la lectura de esas rutas, no tiene memoria
-persistente entre evaluaciones (cada corrida es independiente, para que
-dos corridas del mismo repo den el mismo resultado).
+Para la nota de las 5 dimensiones no necesita, y no debe tener, ninguna
+otra herramienta: no escribe en el repositorio evaluado, no ejecuta
+código del alumno, no tiene acceso a Internet más allá de la lectura de
+esas rutas, no tiene memoria persistente entre evaluaciones (cada corrida
+es independiente, para que dos corridas del mismo repo den el mismo
+resultado).
+
+## Capacidad adicional: lectura del código de implementación (no afecta la nota)
+
+Además de las 5 rutas obligatorias, el corrector puede leer el resto del
+código del repositorio (los archivos de implementación: `.py`, `.js`, lo
+que use el proyecto) para producir la sección `revision_de_codigo` de la
+salida (ver `system_prompt.md`, Fase 6). Sigue siendo **solo lectura,
+L1**: la única diferencia con las 5 rutas obligatorias es que esta lectura
+es de mejor esfuerzo y no determina ningún puntaje — si el código no está
+donde se espera, o el repo organiza la implementación de otra forma, esta
+sección simplemente queda más corta, nunca penaliza ninguna dimensión.
+Esto es deliberado: la nota tiene que seguir siendo reproducible a partir
+de las 5 rutas fijas exclusivamente (aplicar la rúbrica dos veces sobre el
+mismo repo tiene que dar el mismo puntaje); el código real es información
+valiosa para que el alumno mejore, no para decidir cuánto vale su
+entrega.
 
 ## Clasificación L0–L4 de las acciones del corrector
 
