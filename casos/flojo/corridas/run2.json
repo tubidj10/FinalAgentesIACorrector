@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-08-27T10:05:00Z",
+  "request": {
+    "model": "claude-sonnet-5",
+    "parameters": {
+      "CLIENTE_ID": "c-4099",
+      "TICKET_TEXTO": "quiero saber si tienen plan anual"
+    }
+  },
+  "response": {
+    "content": [
+      { "type": "text", "text": "{\"prioridad\": \"baja\", \"area\": \"producto\"}" }
+    ],
+    "usage": { "input_tokens": 198, "output_tokens": 18 }
+  }
+}
