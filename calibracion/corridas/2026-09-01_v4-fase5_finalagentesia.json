@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-09-01T06:00:00Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIA",
+  "version_rubrica": "v4 + Fase 5 (revisión de código, primera corrida con esta capacidad)",
+  "nota_metodologica": "Nota de las 5 dimensiones sin cambios respecto a la corrida anterior (92.5/100) -- la Fase 5 es informativa, no puntuada. Novedad de esta corrida: se leyó agente/triage_agent.py y agente/monitoring_api_mock.py, fuera de las 5 rutas obligatorias.",
+  "evaluacion": [
+    { "dimension": "Sistema completo y funcionando", "puntaje_asignado": "9/10", "puntaje_ponderado": "27.0", "justificacion": "Sin cambios." },
+    { "dimension": "Proceso documentado", "puntaje_asignado": "10/10", "puntaje_ponderado": "25.0", "justificacion": "Sin cambios." },
+    { "dimension": "Formato y reproducibilidad", "puntaje_asignado": "8/10", "puntaje_ponderado": "12.0", "justificacion": "Sin cambios." },
+    { "dimension": "Análisis económico", "puntaje_asignado": "9/10", "puntaje_ponderado": "13.5", "justificacion": "Sin cambios." },
+    { "dimension": "Gobierno y riesgo", "puntaje_asignado": "10/10", "puntaje_ponderado": "15.0", "justificacion": "Sin cambios." }
+  ],
+  "nota_final_sobre_100": "92.5",
+  "veredicto_antifraude": "Limpio",
+  "reporte_auditoria": "Sin cambios respecto a la corrida anterior.",
+  "sugerencia_de_mejora": "Fijar versiones exactas en agente/requirements.txt (sin cambios respecto a la corrida anterior).",
+  "revision_de_codigo": [
+    {
+      "archivo": "agente/triage_agent.py",
+      "ubicacion": "línea 306, función _gemini_generate_content",
+      "hallazgo": "La API key de Gemini viaja en la URL como query param (`?key={api_key}`). Las URLs quedan en logs de servidor, proxies intermedios y a veces en el header Referer de requests posteriores -- es una superficie de exposición de credenciales innecesaria.",
+      "sugerencia": "Mandar la key en el header `x-goog-api-key` en vez de la URL (la API de Gemini lo acepta): `headers={'Content-Type': 'application/json', 'x-goog-api-key': api_key}` y sacar `?key={api_key}` de la URL."
+    },
+    {
+      "archivo": "agente/triage_agent.py",
+      "ubicacion": "línea 374, función ejecutar_corrida_gemini",
+      "hallazgo": "`texto_final = next(p[\"text\"] for p in content[\"parts\"] if \"text\" in p).strip()` levanta `StopIteration` sin capturar si la última respuesta de Gemini no trae ningún part de tipo texto (por ejemplo, si el modelo corta con un finishReason distinto de STOP, o la respuesta viene vacía/bloqueada por safety). El error resultante no dice nada sobre qué pasó realmente.",
+      "sugerencia": "Envolver esa línea en un chequeo explícito: `partes_texto = [p['text'] for p in content['parts'] if 'text' in p]; if not partes_texto: raise RuntimeError(f'Gemini no devolvió texto final (finishReason={respuesta[\"candidates\"][0].get(\"finishReason\")})')`."
+    },
+    {
+      "archivo": "agente/triage_agent.py",
+      "ubicacion": "líneas 163 y 337, los dos `while True:` de ejecutar_corrida y ejecutar_corrida_gemini",
+      "hallazgo": "Ninguno de los dos loops de tool-calling tiene un tope de iteraciones. Si el modelo entrara en un patrón de pedir la herramienta repetidamente (un riesgo real y documentado de agentes con tool-calling, el mismo tipo de problema que motivó las reglas anti-alucinación de la iteración 3 de DECISIONES.md), el script queda colgado facturando llamadas indefinidamente en vez de fallar con un error claro.",
+      "sugerencia": "Agregar un contador (`for intento in range(5):` en vez de `while True:`, o un `MAX_ITERACIONES_HERRAMIENTA = 5` con un `raise RuntimeError` si se llega al límite sin una respuesta final)."
+    },
+    {
+      "archivo": "agente/triage_agent.py",
+      "ubicacion": "líneas 179 y 361, dentro de los loops de tool-calling",
+      "hallazgo": "`consultar_api_monitoreo(**block.input)` / `consultar_api_monitoreo(**fc['args'])` pasan los argumentos del modelo directo a la función por keyword-unpacking. Si el modelo alucinara un nombre de parámetro extra (algo que la iteración 3 de DECISIONES.md ya identificó como un riesgo real de este tipo de arquitectura), esto levanta un `TypeError` no manejado en vez de un error claro sobre qué pasó.",
+      "sugerencia": "Filtrar explícitamente las claves esperadas antes de la llamada: `args = {k: v for k, v in fc['args'].items() if k in ('servicio', 'ventana_minutos')}` y validar que 'servicio' esté presente antes de llamar."
+    },
+    {
+      "archivo": "agente/monitoring_api_mock.py",
+      "ubicacion": "función do_GET, línea 50",
+      "hallazgo": "El propio `TOOL_DEF` de triage_agent.py declara `ventana_minutos` con `minimum: 5, maximum: 180`, pero el mock no valida esos límites -- acepta cualquier entero (incluido 0, negativo, o 999999) sin error. El mock no hace cumplir el contrato que el resto del sistema declara.",
+      "sugerencia": "Agregar la validación en do_GET: `if not (5 <= ventana_minutos <= 180): self._responder(400, {'error': 'ventana_minutos_fuera_de_rango'}); return`."
+    }
+  ]
+}
