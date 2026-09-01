@@ -28,10 +28,18 @@ antes del cierre del jueves 10/9 — completar acá a quien se sume)*
 
 ## Cómo correr el corrector sobre un repo real
 
+**Sin API key propia (modo chat, recomendado para la prueba de fuego):**
+pegar `agente/system_prompt.md` + `rubrica.md` como instrucciones en
+cualquier chat de Claude con acceso a GitHub/web (Claude Code, claude.ai
+con búsqueda habilitada), y darle la URL del repo. Paso a paso completo
+en [`agente/modo_chat.md`](./agente/modo_chat.md).
+
+**Con API key (automatizable, guarda el log transaccional real):**
+
 ```bash
 cd agente
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-...      # obligatorio, no hay modo simulado
+export ANTHROPIC_API_KEY=sk-...      # solo para este modo
 export GITHUB_TOKEN=ghp_...          # opcional, solo lectura pública, sube el rate limit
 python3 ejecutar_evaluacion.py https://github.com/<owner>/<repo> ../corridas_manuales/
 ```
