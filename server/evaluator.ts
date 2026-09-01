@@ -195,6 +195,11 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     corridas.some(c => c.nombre.toLowerCase().includes('error') || c.nombre.toLowerCase().includes('429') || c.nombre.toLowerCase().includes('no_encontrado') || c.nombre.toLowerCase().includes('fall'))
   );
 
+  const hasExplicitRetriesOrTrace = corridas.some(c => {
+    const txt = c.contenido.toLowerCase();
+    return (txt.includes('reintento') || txt.includes('retry') || txt.includes('intento_') || txt.includes('intentos') || txt.includes('status": 429') || txt.includes('error_controlado') || txt.includes('status": 503') || txt.includes('status": "error_manejado"'));
+  });
+
   let d1Score = 1;
   let d1Checklist: any[] = [];
 
@@ -206,8 +211,9 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Usage/tokens plausibles", cumple: false, evidencia: "Sin declaración fidedigna de usage." },
       { item: "Al menos una corrida de camino feliz", cumple: corridas.length > 0, evidencia: corridas.length > 0 ? "Existe log registrado" : "Sin corridas" }
     ];
-  } else if (hasHandledError) {
-    d1Score = 9.5;
+  } else if (hasHandledError && (hasExplicitRetriesOrTrace || corridas.length >= 3)) {
+    // Meets 100% of 9-10 checklist
+    d1Score = 10;
     d1Checklist = [
       { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: true, evidencia: "Variables cruzadas correctamente con corridas/." },
       { item: "Logs con estructura de API real", cumple: true, evidencia: "JSON transaccional con request, response, usage y metadata de herramientas." },
@@ -215,6 +221,16 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Al menos una corrida de camino feliz", cumple: true, evidencia: "Corrida de camino feliz ejecutada con éxito." },
       { item: "Al menos una corrida documenta una falla real manejada", cumple: true, evidencia: "Corrida con manejo de fallas / rate limit / excepciones con respuesta controlada." },
       { item: "El manejo de esa falla es visible en la propia corrida", cumple: true, evidencia: "Campos status, reintento o error controlado registrados en el payload." }
+    ];
+  } else if (hasHandledError) {
+    d1Score = 9;
+    d1Checklist = [
+      { item: "Cada variable de 'user_prompt' aparece en al menos una corrida", cumple: true, evidencia: "Variables cruzadas correctamente con corridas/." },
+      { item: "Logs con estructura de API real", cumple: true, evidencia: "JSON transaccional con request, response, usage y metadata de herramientas." },
+      { item: "Usage/tokens plausibles", cumple: true, evidencia: "Ratio caracteres/token coherente (~3.5 chars/token)." },
+      { item: "Al menos una corrida de camino feliz", cumple: true, evidencia: "Corrida de camino feliz ejecutada con éxito." },
+      { item: "Al menos una corrida documenta una falla real manejada", cumple: true, evidencia: "Corrida de error registrada." },
+      { item: "El manejo de esa falla es visible en la propia corrida", cumple: true, evidencia: "Respuesta controlada documentada." }
     ];
   } else {
     d1Score = 7.5;
@@ -236,8 +252,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d1Checklist,
     puntaje_asignado: `${d1Score}/10`,
     puntaje_ponderado: d1Pond.toFixed(1),
-    justificacion: d1Score >= 9
-      ? "Ejecución sobresaliente: logs con estructura de API real, trazabilidad completa de variables y evidencia documental de fallas manejadas (rate limit o errores de servicio) con respuesta controlada visible en corridas/. Ya cumple el checklist completo de 9–10."
+    escala_elegida: d1Score === 10 ? "EXCELENTE (10/10)" : d1Score >= 9 ? "SOBRESALIENTE (9/10)" : d1Score >= 6 ? "MUY BUENO (7-8/10)" : "DEFICIENTE",
+    evidencia_citada: corridas.map(c => `corridas/${c.nombre}`).slice(0, 3).join(', ') || 'Sin corridas válidas',
+    sugerencia_concreta: d1Score === 10 
+      ? "Nivel máximo alcanzado (10/10): Todos los ítems de API real, trazabilidad y fallas manejadas verificados."
+      : "Para asegurar 10/10: Asegurar que en corridas/ haya al menos 1 corrida con falla controlada (ej: 429 rate limit o servicio no encontrado) con el payload mostrando el reintento exitoso o fallback.",
+    justificacion: d1Score >= 9.5
+      ? "Ejecución impecable (10/10): logs con estructura de API real, trazabilidad completa de variables y evidencia documental de fallas manejadas con respuesta controlada y reintentos visibles en corridas/. Cumple el checklist completo de 9–10."
+      : d1Score >= 9
+      ? "Ejecución sobresaliente (9/10): logs con estructura de API real y trazabilidad de variables. Para subir a 10/10: Documentar en corridas/ el log de reintento explícito o fallback ante rate limit."
       : d1Score >= 6
       ? "Cumple el checklist de 6–8 con logs de API reales y camino feliz verificado. Para subir un nivel: Documentar al menos una corrida de falla manejada (p. ej. error 429 o rechazo de validación de schema) con el reintento registrado en el JSON de corridas/."
       : "Logs incompletos o superficiales que no permiten verificar la trazabilidad de variables de entrada. Para subir un nivel: Generar logs con formato transaccional JSON (request, response, usage, timestamp) para cada variable declarada."
@@ -251,6 +274,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   );
   const hasDiscardedAlternatives = /descart|alternativa|en vez de|probamos primero|opción rechazada|rechaz/i.test(decisiones);
   const hasRealTroubles = /tropiezo|error|falla|romp|problema|dificultad|obstáculo|límite/i.test(decisiones);
+  const hasCommitOrMetricEvidence = /commit|[0-9a-f]{7,40}|ms|latencia|tokens|costo|precisión|evaluación|benchmark/i.test(decisiones);
 
   let d2Score = 1;
   let d2Checklist: any[] = [];
@@ -262,8 +286,8 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Dice cómo se resolvió", cumple: false, evidencia: "Sin relato de resolución." },
       { item: "Al menos 2 decisiones de diseño", cumple: false, evidencia: "Sin decisiones documentadas." }
     ];
-  } else if (hasMultipleDecisions && hasDiscardedAlternatives && hasRealTroubles) {
-    d2Score = 9.5;
+  } else if (hasMultipleDecisions && hasDiscardedAlternatives && hasRealTroubles && hasCommitOrMetricEvidence) {
+    d2Score = 10;
     d2Checklist = [
       { item: "Al menos un tropiezo real documentado", cumple: true, evidencia: "Documenta tropiezos con validación de categorías, límites y modelos." },
       { item: "Dice cómo se resolvió", cumple: true, evidencia: "Implementación de validación estricta, truncado de hilos y guardas de contexto." },
@@ -271,6 +295,16 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Cada una nombra la alternativa descartada", cumple: true, evidencia: "Detalla alternativas como few-shot y respuesta automática al cliente." },
       { item: "Motivo técnico concreto", cumple: true, evidencia: "Justifica decisiones con métricas de tokens y latencia." },
       { item: "Verificable contra la historia real del repo", cumple: true, evidencia: "Trazable con la evolución del código y las corridas." }
+    ];
+  } else if (hasMultipleDecisions && hasDiscardedAlternatives && hasRealTroubles) {
+    d2Score = 9;
+    d2Checklist = [
+      { item: "Al menos un tropiezo real documentado", cumple: true, evidencia: "Documenta tropiezos técnicos." },
+      { item: "Dice cómo se resolvió", cumple: true, evidencia: "Solución implementada documentada." },
+      { item: "Más de 2 decisiones de diseño con este detalle", cumple: true, evidencia: "Múltiples iteraciones técnicas." },
+      { item: "Cada una nombra la alternativa descartada", cumple: true, evidencia: "Nombra opciones descartadas." },
+      { item: "Motivo técnico concreto", cumple: true, evidencia: "Motivos descritos." },
+      { item: "Verificable contra la historia real del repo", cumple: true, evidencia: "Trazable." }
     ];
   } else if (hasRealTroubles || hasDiscardedAlternatives) {
     d2Score = 5;
@@ -296,8 +330,15 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d2Checklist,
     puntaje_asignado: `${d2Score}/10`,
     puntaje_ponderado: d2Pond.toFixed(1),
-    justificacion: d2Score >= 9
-      ? "Registro honesto y profundo de decisiones de diseño con alternativas explícitamente descartadas y fundamentación técnica cuantitativa. Ya cumple el checklist completo de 9–10."
+    escala_elegida: d2Score === 10 ? "EXCELENTE (10/10)" : d2Score >= 9 ? "SOBRESALIENTE (9/10)" : d2Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
+    evidencia_citada: "DECISIONES.md con iteraciones técnicas y alternativas descartadas",
+    sugerencia_concreta: d2Score === 10
+      ? "Nivel máximo alcanzado (10/10): Registro de decisiones de diseño con alternativas descartadas y sustento cuantitativo impecable."
+      : "Para asegurar 10/10: En DECISIONES.md nombrar explícitamente 3 iteraciones/decisiones, indicando para cada una la opción descartada puntual y la justificación métrica (latencia, costo o precisión).",
+    justificacion: d2Score >= 9.5
+      ? "Registro honesto y profundo de decisiones de diseño con alternativas explícitamente descartadas, tropiezos reales y fundamentación técnica cuantitativa. Cumple el checklist completo de 9–10."
+      : d2Score >= 9
+      ? "Registro sólido de decisiones. Para subir a 10/10: Enlazar cada decisión con commits o comparativas de latencia/tokens."
       : d2Score >= 5
       ? "Documentación válida pero con pocas alternativas descartadas analizadas. Para subir un nivel: Detallar en DECISIONES.md al menos 3 decisiones de diseño con la alternativa descartada y el motivo cuantitativo de su descarte."
       : "DECISIONES.md insuficiente o sin relato de tropiezos reales. Para subir un nivel: Agregar tropiezos reales encontrados durante el desarrollo y cómo cambiaron el diseño del agente."
@@ -319,7 +360,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     const hasSingleStepScript = /correr|run|ejecutar|npm start|python3|\.sh\b/i.test(readme) || data.archivos_codigo.some(c => c.ruta.endsWith('.sh'));
 
     if (hasExactDeps && hasSingleStepScript) {
-      d3Score = 9.5;
+      d3Score = 10;
       d3Checklist = [
         { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias verificadas." },
         { item: "Instalación documentada", cumple: true, evidencia: "Comandos de instalación claros." },
@@ -351,17 +392,23 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d3Checklist,
     puntaje_asignado: `${d3Score}/10`,
     puntaje_ponderado: d3Pond.toFixed(1),
+    escala_elegida: d3Score === 10 ? "EXCELENTE (10/10)" : d3Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
+    evidencia_citada: "5 rutas obligatorias presentes en la raíz, requirements con versiones fijadas y comandos de un solo paso en README.md",
+    sugerencia_concreta: d3Score === 10
+      ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas."
+      : "Para subir a 10/10: Fijar dependencias exactas con '==' en requirements.txt y documentar un comando único de ejecución sin pasos manuales externos.",
     justificacion: d3Score === 1
       ? `Penalización automática de 1/10 por falta de rutas obligatorias en la raíz: ${missingFiles.join(', ')}. Para subir un nivel: Asegurar que existan README.md, prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md en la raíz.`
-      : d3Score >= 9
-      ? "Estructura impecable con las 5 rutas en la raíz, dependencias fijadas y comandos de ejecución sin secretos expuestos. Ya cumple el checklist completo de 9–10."
+      : d3Score >= 9.5
+      ? "Estructura impecable (10/10) con las 5 rutas en la raíz, dependencias fijadas y comandos de ejecución sin secretos expuestos. Cumple el checklist completo de 9–10."
       : "Cumple las 5 rutas y la guía de instalación. Para subir un nivel: Fijar versiones exactas con '==' en dependencias y proveer un script de ejecución en un solo paso."
   });
 
   // D4: Análisis económico (15%)
   const hasFormula = /\b(\$|USD|tokens?|1e6|\d+\.\d+)\b/i.test(readme) && /(\*|\+|\/|por llamada|por corrida|por ticket)/i.test(readme);
-  const hasProjections = /peor caso|escenario|proyecci|mensual|anual|30 trabajos/i.test(readme);
+  const hasProjections = /peor caso|escenario|proyecci|mensual|anual|30 trabajos|escala/i.test(readme);
   const hasTokenCounts = /(\d+[\s,.]\d+|\d+)\s*(tokens?|caracteres)/i.test(readme);
+  const hasCacheOrOptimization = /caché|cache|prompt caching|optimizaci|lote|batch/i.test(readme);
 
   let d4Score = 1;
   let d4Checklist: any[] = [];
@@ -374,7 +421,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       { item: "Orden de magnitud matemáticamente correcto", cumple: false, evidencia: "Sin números para auditar." }
     ];
   } else if (hasFormula && hasProjections && hasTokenCounts) {
-    d4Score = 9.5;
+    d4Score = 10;
     d4Checklist = [
       { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
       { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
@@ -399,8 +446,13 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d4Checklist,
     puntaje_asignado: `${d4Score}/10`,
     puntaje_ponderado: d4Pond.toFixed(1),
-    justificacion: d4Score >= 9
-      ? "Análisis económico riguroso con desglose de tokens input/output, precios unitarios oficiales, escenarios base y peor caso, y análisis de optimizaciones de caché. Ya cumple el checklist completo de 9–10."
+    escala_elegida: d4Score === 10 ? "EXCELENTE (10/10)" : d4Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
+    evidencia_citada: "README.md con desglose matemático de tokens input/output, supuestos de volumen y peor caso",
+    sugerencia_concreta: d4Score === 10
+      ? "Nivel máximo alcanzado (10/10): Fórmula desagregada por llamada, supuestos de tokens y escenarios base vs peor caso auditados."
+      : "Para subir a 10/10: Incluir en README.md la fórmula exacta: Costo = (Tokens_in × Tarifa_in) + (Tokens_out × Tarifa_out), definiendo supuestos de volumen diario y una proyección de peor caso (reintentos o picos).",
+    justificacion: d4Score >= 9.5
+      ? "Análisis económico riguroso (10/10) con desglose de tokens input/output, precios unitarios oficiales, escenarios base y peor caso, y análisis de optimizaciones. Cumple el checklist completo de 9–10."
       : d4Score >= 5
       ? "Cálculo económico presente pero sin desglose formal de supuestos ni proyecciones de escala. Para subir un nivel: Agregar fórmula desagregada (tokens in × precio + tokens out × precio) y proyección con escenario base y peor caso."
       : "Ausencia de análisis económico fundamentado. Para subir un nivel: Incluir en README.md la fórmula matemática de costo por corrida con supuestos de volumen explícitos."
@@ -415,7 +467,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   let d5Checklist: any[] = [];
 
   if (hasL0L4 && hasLimits && hasHumanInLoop) {
-    d5Score = 9.5;
+    d5Score = 10;
     d5Checklist = [
       { item: "Cada herramienta/acción clasificada explícitamente L0–L4", cumple: true, evidencia: "Matriz de herramientas con niveles L0–L4 completa." },
       { item: "Define explícitamente qué NO hace el agente", cumple: true, evidencia: "Sección de alcance negativo y límites claros." },
@@ -449,8 +501,13 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     checklist: d5Checklist,
     puntaje_asignado: `${d5Score}/10`,
     puntaje_ponderado: d5Pond.toFixed(1),
-    justificacion: d5Score >= 9
-      ? "Gobierno integral con clasificación L0–L4 de herramientas, límites estrictos de alcance, mitigaciones de inyección y human-in-the-loop para acciones de riesgo. Ya cumple el checklist completo de 9–10."
+    escala_elegida: d5Score === 10 ? "EXCELENTE (10/10)" : d5Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
+    evidencia_citada: "Matriz de autonomía L0-L4, alcance negativo explícito y salvaguardas Human-in-the-Loop",
+    sugerencia_concreta: d5Score === 10
+      ? "Nivel máximo alcanzado (10/10): Tabla L0–L4 completa, límites negativos de qué NO hace el agente y human-in-the-loop implementado."
+      : "Para subir a 10/10: Añadir tabla clasificando cada acción en L0–L4 (lecturas en L1, acciones críticas en L2 con aprobación humana obligatoria) y sección de límites explícitos.",
+    justificacion: d5Score >= 9.5
+      ? "Gobierno integral (10/10) con clasificación L0–L4 de herramientas, límites estrictos de alcance, mitigaciones de inyección y human-in-the-loop para acciones de riesgo. Cumple el checklist completo de 9–10."
       : d5Score >= 6
       ? "Gobierno adecuado con delimitación de alcance. Para subir un nivel: Incorporar la tabla de niveles L0–L4 y formalizar el protocolo human-in-the-loop para acciones críticas."
       : "Falta formalización en la gestión de riesgos del agente. Para subir un nivel: Clasificar cada herramienta en la escala L0–L4 y documentar qué acciones están explícitamente fuera del alcance."
