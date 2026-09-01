@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-08-25T14:30:12Z",
+  "run_id": "run-014",
+  "request": {
+    "model": "claude-sonnet-5",
+    "temperature": 0,
+    "max_tokens": 200,
+    "parameters": {
+      "CANAL": "chat",
+      "CLIENTE_ID": "c-11940",
+      "IDIOMA": "es",
+      "TICKET_TEXTO": "hola como hago para cambiar el color del tema de la app? no encuentro la opcion"
+    }
+  },
+  "intentos": [
+    {
+      "numero": 1,
+      "timestamp": "2026-08-25T14:30:12Z",
+      "error": {
+        "tipo": "rate_limit_error",
+        "http_status": 429,
+        "mensaje": "Number of request tokens has exceeded your per-minute rate limit"
+      }
+    },
+    {
+      "numero": 2,
+      "timestamp": "2026-08-25T14:30:14Z",
+      "backoff_aplicado_ms": 2000,
+      "response": {
+        "id": "msg_01Ppa9NcQ3vTfR7dKmLxYbHs",
+        "model": "claude-sonnet-5",
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"prioridad\": \"baja\", \"area\": \"producto\", \"resumen\": \"Consulta por como cambiar el tema/color de la interfaz.\"}"
+          }
+        ],
+        "usage": {
+          "input_tokens": 598,
+          "output_tokens": 38
+        },
+        "stop_reason": "end_turn"
+      }
+    }
+  ],
+  "resultado_final": "OK tras reintento",
+  "validacion_schema": "OK",
+  "latencia_total_ms": 2340
+}
