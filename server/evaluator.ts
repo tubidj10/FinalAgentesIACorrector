@@ -474,7 +474,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     sugerencia_concreta: d3Score === 10
       ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas y coherentes."
       : (dependencyInconsistency || hasDeprecatedModelRef)
-      ? "Para subir a 10/10: Sincronizar las versiones fijadas en requirements.txt y requirements.lock (ej: anthropic), y reemplazar modelos obsoletos por versiones vigentes (ej: gemini-3.7-flash)."
+      ? "Para subir a 10/10: Sincronizar las versiones fijadas en requirements.txt y requirements.lock (ej: anthropic), y reemplazar modelos obsoletos por versiones vigentes (ej: gemini-3.6-flash, verificado real con una llamada a la API en esta rúbrica)."
       : "Para subir a 10/10: Fijar dependencias exactas con '==' en requirements.txt y documentar un comando único de ejecución sin pasos manuales externos.",
     justificacion: d3Score === 1
       ? `Penalización automática de 1/10 por falta de rutas obligatorias en la raíz: ${missingFiles.join(', ')}. Para subir un nivel: Asegurar que existan README.md, prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md en la raíz.`
