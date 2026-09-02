@@ -520,7 +520,8 @@ export async function extractRepoContents(
       })),
       Promise.all(corridaBlobPaths.map(async (path) => {
         const content = await fetchGitHubFile(owner, repo, path, githubToken);
-        return { nombre: path, contenido: content };
+        const relName = path.replace(/^(?:corridas|runs|logs)\//i, '');
+        return { nombre: relName, contenido: content };
       })),
       Promise.all(codeBlobPaths.map(async (path) => {
         const content = await fetchGitHubFile(owner, repo, path, githubToken);
@@ -593,21 +594,40 @@ export async function extractRepoContents(
     }
 
     const fileCorridas = itemsCorridas.filter(i => i.type === 'file').slice(0, 10);
-    if (fileCorridas.length === 0) {
+    const dirCorridas = itemsCorridas.filter(i => i.type === 'dir').slice(0, 5);
+
+    if (fileCorridas.length === 0 && dirCorridas.length === 0) {
       archivos_faltantes.push('corridas/');
     } else {
-      const corridaContents = await Promise.all(
-        fileCorridas.map(async (item) => {
-          const content = await fetchGitHubFile(owner, repo, `corridas/${item.name}`, githubToken) ||
-                          await fetchGitHubFile(owner, repo, `logs/${item.name}`, githubToken) ||
-                          await fetchGitHubFile(owner, repo, `runs/${item.name}`, githubToken);
-          return { nombre: item.name, contenido: content };
-        })
-      );
-      for (const c of corridaContents) {
-        if (c.contenido !== null) {
+      const filePromises = fileCorridas.map(async (item) => {
+        const content = await fetchGitHubFile(owner, repo, `corridas/${item.name}`, githubToken) ||
+                        await fetchGitHubFile(owner, repo, `logs/${item.name}`, githubToken) ||
+                        await fetchGitHubFile(owner, repo, `runs/${item.name}`, githubToken);
+        return { nombre: item.name, contenido: content };
+      });
+
+      const subDirPromises = dirCorridas.map(async (dirItem) => {
+        const subItems = await fetchGitHubDirectory(owner, repo, `corridas/${dirItem.name}`, githubToken);
+        const subFiles = subItems.filter(s => s.type === 'file').slice(0, 5);
+        return Promise.all(subFiles.map(async (sf) => {
+          const content = await fetchGitHubFile(owner, repo, `corridas/${dirItem.name}/${sf.name}`, githubToken);
+          return { nombre: `${dirItem.name}/${sf.name}`, contenido: content };
+        }));
+      });
+
+      const [directResults, subDirNestedResults] = await Promise.all([
+        Promise.all(filePromises),
+        Promise.all(subDirPromises)
+      ]);
+
+      const allFetchedCorridas = [...directResults, ...subDirNestedResults.flat()];
+      for (const c of allFetchedCorridas) {
+        if (c && c.contenido !== null) {
           corridas.push({ nombre: c.nombre, contenido: c.contenido });
         }
+      }
+      if (corridas.length === 0) {
+        archivos_faltantes.push('corridas/');
       }
     }
 

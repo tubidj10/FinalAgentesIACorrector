@@ -39,7 +39,10 @@ export function buildUserPrompt(data: ExtractedRepoData): string {
     : '[CARPETA VACÍA O INEXISTENTE]';
 
   const bloquesCorridas = data.corridas.length > 0
-    ? data.corridas.map(c => `<archivo ruta="corridas/${c.nombre}">\n${c.contenido}\n</archivo>`).join('\n\n')
+    ? data.corridas.map(c => {
+        const rutaCompleta = c.nombre.startsWith('corridas/') ? c.nombre : `corridas/${c.nombre}`;
+        return `<archivo ruta="${rutaCompleta}">\n${c.contenido}\n</archivo>`;
+      }).join('\n\n')
     : '';
 
   const bloquesCodigo = data.archivos_codigo.length > 0
@@ -49,7 +52,8 @@ export function buildUserPrompt(data: ExtractedRepoData): string {
   const allExistingFiles = new Set([
     ...Object.keys(data.archivos_obligatorios).filter(k => data.archivos_obligatorios[k] !== null),
     ...data.archivos_codigo.map(c => c.ruta),
-    ...data.corridas.map(c => 'corridas/' + c.nombre)
+    ...data.corridas.map(c => c.nombre.startsWith('corridas/') ? c.nombre : 'corridas/' + c.nombre),
+    ...data.corridas.map(c => c.nombre.replace(/^corridas\//, ''))
   ]);
 
   const allTexts = [data.archivos_obligatorios['README.md'] || '', data.archivos_obligatorios['DECISIONES.md'] || ''].join('\n');
