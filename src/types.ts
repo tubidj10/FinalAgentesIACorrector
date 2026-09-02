@@ -64,6 +64,10 @@ export interface Fase0Verificacion {
   afirmaciones_verificadas: { afirmacion: string; cita: string; archivo: string }[];
   afirmaciones_no_verificadas: { afirmacion: string; motivo: string }[];
   inconsistencias: { descripcion: string; archivos_involucrados: string[]; severidad: 'leve' | 'critica' | 'fraude' }[];
+  archivos_obligatorios_presentes?: Record<string, boolean>;
+  todos_archivos_presentes?: boolean;
+  corridas_detectadas?: number;
+  consistencia_metricas_readme?: boolean;
 }
 
 export interface EvaluacionCompleta {

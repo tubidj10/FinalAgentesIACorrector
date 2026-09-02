@@ -117,7 +117,7 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   );
 
   const hasRealLLMCall = (
-    /google\.genai|genai\.Client|openai\.OpenAI|anthropic\.Anthropic|ChatOpenAI|ChatGoogleGenerativeAI|GenerativeModel|createChatCompletion/i.test(allRepoCode) ||
+    /(?:import\s+openai|from\s+openai\s+import|openai\.OpenAI|OpenAI\(|from\s+google(?:\.genai)?\s+import|import\s+google\.genai|genai\.Client|ChatGoogleGenerativeAI|GenerativeModel|createChatCompletion|from\s+anthropic\s+import|import\s+anthropic|anthropic\.Anthropic|ChatOpenAI)/i.test(allRepoCode) ||
     /requests\.post\(['"]https:\/\/(?:generativelanguage|api\.openai|api\.anthropic)/i.test(allRepoCode) ||
     /fetch\(['"]https:\/\/(?:generativelanguage|api\.openai|api\.anthropic)/i.test(allRepoCode) ||
     /(?:urllib\.request|urllib3|axios|http\.client)[\s\S]*?(?:generativelanguage\.googleapis\.com|api\.anthropic\.com|api\.openai\.com|x-goog-api-key|x-api-key)/i.test(allRepoCode) ||
@@ -162,8 +162,15 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   // =========================================================================
   // 3. ROBUSTEZ DE PROMPT: Aislamiento de Datos No Confiables & Jailbreak
   // =========================================================================
+  const normalizePromptText = (text: string) =>
+    text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const normSysPrompt = normalizePromptText(sysPrompt);
+  const normUserPrompt = normalizePromptText(userPrompt);
+
   const hasBoundaryTags = /<[a-z_]+>[\s\S]*?<\/[a-z_]+>|```[a-z]*\n[\s\S]*?```/i.test(sysPrompt) || /<[a-z_]+>[\s\S]*?<\/[a-z_]+>/i.test(userPrompt);
-  const hasExplicitSandboxDirective = /(dato, no instrucci|no obedezcas|ignora cualquier directiva|es contenido no confiable|untrusted data)/i.test(sysPrompt) || /(dato, no instrucci|no obedezcas|ignora cualquier directiva)/i.test(userPrompt);
+  const hasExplicitSandboxDirective = /(dato,\s*no\s*instrucci|dato\s*no\s*instrucci|es\s*dato|no\s*obedezcas|ignora\s*cualquier\s*directiva|contenido\s*no\s*confiable|untrusted\s*data|no\s*ejecutes\s*(?:instrucciones|ordenes)|datos?\s*de\s*entrada\s*no\s*instrucci)/i.test(normSysPrompt) ||
+    /(dato,\s*no\s*instrucci|dato\s*no\s*instrucci|es\s*dato|no\s*obedezcas|ignora\s*cualquier\s*directiva|contenido\s*no\s*confiable|untrusted\s*data|no\s*ejecutes\s*(?:instrucciones|ordenes)|datos?\s*de\s*entrada\s*no\s*instrucci)/i.test(normUserPrompt);
   const hasStrictJsonSchema = /json|schema|pydantic|response_mime_type|response_schema|response_format/i.test(sysPrompt) || /json|schema/i.test(allRepoCode);
 
   let calidadAislamiento: 'ALTA' | 'MEDIA' | 'VULNERABLE' = 'VULNERABLE';
@@ -323,9 +330,9 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   // =========================================================================
   const hasToolDeclaration = /tools\s*:\s*\[|functionDeclarations|tool_calls|tools_schema|function_call/i.test(allRepoCode);
   const hasToolInputValidation = (
-    /ventana_minutos|params|schema|Type\.OBJECT|pydantic|zod|min_value|max_value|fuera_de_rango/i.test(allRepoCode)
+    /ventana_minutos|params|schema|Type\.OBJECT|pydantic|zod|min_value|max_value|fuera_de_rango|minimum|maximum|exclusiveMinimum|exclusiveMaximum|enum|ValueError|TypeError|Field\(|conint|constr|ge\s*=|le\s*=|gt\s*=|lt\s*=/i.test(allRepoCode)
   );
-  const hasToolErrorHandling = /tool.*status|tool_error|status:\s*400|error.*monitoreo|error.*tool/i.test(allRepoCode);
+  const hasToolErrorHandling = /tool.*status|tool_error|status:\s*400|error.*monitoreo|error.*tool|except\s+(?:ValueError|Exception|KeyError)|raise\s+ValueError/i.test(allRepoCode);
 
   let calidadHerramientas: 'ROBUSTA' | 'BASICA' | 'DEFICIENTE' = 'DEFICIENTE';
   if (hasToolDeclaration && hasToolInputValidation && hasToolErrorHandling) {
@@ -493,11 +500,38 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   // =========================================================================
   // 11. AUDITORÍA DE ARTEFACTOS Y CORRIDAS (JSON Crudo & Trazabilidad)
   // =========================================================================
-  const hasMultipleCorridaTypes = corridas.length >= 3 && (
-    corridas.some(c => c.nombre.includes('01') || c.nombre.includes('feliz') || c.nombre.includes('happy')) &&
-    corridas.some(c => c.nombre.includes('02') || c.nombre.includes('alta') || c.nombre.includes('p1')) &&
-    corridas.some(c => c.nombre.includes('03') || c.nombre.includes('error') || c.nombre.includes('servicio') || c.nombre.includes('429'))
-  );
+  const getScenarioGroup = (name: string): string => {
+    const lower = name.toLowerCase();
+    const parts = lower.split('/');
+    if (parts.length > 1) {
+      for (let i = 0; i < parts.length - 1; i++) {
+        const seg = parts[i];
+        if (seg !== 'corridas' && seg !== 'runs' && seg !== 'logs' && seg !== 'ejecuciones' && seg !== 'traces' && seg !== 'salidas') {
+          return seg;
+        }
+      }
+    }
+    const fileName = parts[parts.length - 1];
+    const prefixMatch = fileName.match(/^([0-9]{1,2}(?:-[a-z0-9_-]+)?|corrida[_-]?[0-9a-z]+|caso[_-]?[0-9a-z]+)/);
+    if (prefixMatch) return prefixMatch[1];
+    return fileName;
+  };
+
+  const scenarioGroups = new Set<string>();
+  for (const c of corridas) {
+    scenarioGroups.add(getScenarioGroup(c.nombre));
+  }
+  const uniqueScenarioCount = scenarioGroups.size > 0 ? scenarioGroups.size : corridas.length;
+
+  const hasMultipleCorridaTypes = uniqueScenarioCount >= 3 || (corridas.length >= 3 && (
+    corridas.some(c => /01|feliz|happy|normal|standard/i.test(c.nombre)) &&
+    corridas.some(c => /02|alta|p1|critico|limite|edge/i.test(c.nombre)) &&
+    corridas.some(c => /03|error|servicio|429|riesgo|fail|timeout/i.test(c.nombre))
+  ));
+
+  const corridaEvidenceText = uniqueScenarioCount !== corridas.length && corridas.length > 0
+    ? `${uniqueScenarioCount} corridas estructuradas (${corridas.length} artefactos de ejecución) en corridas/.`
+    : `${uniqueScenarioCount} corridas estructuradas en corridas/.`;
 
   if (hasMultipleCorridaTypes) {
     controles.push({
@@ -507,7 +541,7 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
       estado: 'aprobado',
       puntaje_impacto: 0,
       descripcion: 'El repositorio incluye corridas exhaustivas cubriendo múltiples severidades y condiciones de error simuladas.',
-      evidencia: `${corridas.length} corridas estructuradas con escenarios diversos en corridas/.`,
+      evidencia: corridaEvidenceText,
       recomendacion: 'Excelente rigor en la generación de evidencias empíricas.'
     });
   } else if (corridas.length > 0) {
@@ -518,7 +552,7 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
       estado: 'advertencia',
       puntaje_impacto: -2,
       descripcion: 'Se registran corridas pero no cubren una diversidad balanceada de escenarios (camino feliz, fallas de servicio, severidades altas).',
-      evidencia: `${corridas.length} corrida(s) encontrada(s).`,
+      evidencia: `${uniqueScenarioCount} corrida(s) encontrada(s) (${corridas.length} archivo(s)).`,
       recomendacion: 'Documentar al menos 3 corridas con diferentes escenarios y condiciones de error.'
     });
   }

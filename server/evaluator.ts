@@ -40,7 +40,9 @@ export function buildUserPrompt(data: ExtractedRepoData): string {
 
   const bloquesCorridas = data.corridas.length > 0
     ? data.corridas.map(c => {
-        const rutaCompleta = c.nombre.includes('/') ? c.nombre : `corridas/${c.nombre}`;
+        const rutaCompleta = c.nombre.startsWith('corridas/') || c.nombre.includes('/')
+          ? c.nombre
+          : `corridas/${c.nombre}`;
         return `<archivo ruta="${rutaCompleta}">\n${c.contenido}\n</archivo>`;
       }).join('\n\n')
     : '';
@@ -704,6 +706,27 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     });
   }
 
+  const obligPresentes: Record<string, boolean> = {
+    'README.md': !data.archivos_faltantes.includes('README.md'),
+    'prompts/system_prompt.md': !data.archivos_faltantes.includes('prompts/system_prompt.md'),
+    'prompts/user_prompt.md': !data.archivos_faltantes.includes('prompts/user_prompt.md'),
+    'DECISIONES.md': !data.archivos_faltantes.includes('DECISIONES.md'),
+    'corridas/': data.corridas.length > 0 && !data.archivos_faltantes.includes('corridas/')
+  };
+  const todosPresentes = Object.values(obligPresentes).every(Boolean);
+
+  const scenarioGroups = new Set<string>();
+  for (const c of data.corridas) {
+    const parts = c.nombre.split('/');
+    if (parts.length > 1) {
+      scenarioGroups.add(parts[0] === 'corridas' ? parts[1] || parts[0] : parts[0]);
+    } else {
+      const match = c.nombre.match(/^([0-9]{1,2}(?:-[a-z0-9_-]+)?|corrida[_-]?[0-9a-z]+|caso[_-]?[0-9a-z]+)/i);
+      scenarioGroups.add(match ? match[1] : c.nombre);
+    }
+  }
+  const corridasDetectadas = scenarioGroups.size > 0 ? scenarioGroups.size : data.corridas.length;
+
   return {
     fase0: {
       afirmaciones_verificadas: [
@@ -711,7 +734,11 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { afirmacion: "Modelo utilizado", cita: "Declarado en prompts/ y README", archivo: "README.md" }
       ],
       afirmaciones_no_verificadas: [],
-      inconsistencias: fase0Inconsistencias
+      inconsistencias: fase0Inconsistencias,
+      archivos_obligatorios_presentes: obligPresentes,
+      todos_archivos_presentes: todosPresentes,
+      corridas_detectadas: corridasDetectadas,
+      consistencia_metricas_readme: true
     },
     dimensiones,
     nota_final: Math.round(notaFinal * 10) / 10,
@@ -969,6 +996,27 @@ export function normalizeEvaluatorResult(rawParsed: any, data: ExtractedRepoData
 
   // 4. Extract verification / Fase 0
   const rawFase0 = rawParsed.fase0 || rawParsed.verificacion_cruzada || {};
+  const obligPresentes: Record<string, boolean> = {
+    'README.md': !data.archivos_faltantes.includes('README.md'),
+    'prompts/system_prompt.md': !data.archivos_faltantes.includes('prompts/system_prompt.md'),
+    'prompts/user_prompt.md': !data.archivos_faltantes.includes('prompts/user_prompt.md'),
+    'DECISIONES.md': !data.archivos_faltantes.includes('DECISIONES.md'),
+    'corridas/': data.corridas.length > 0 && !data.archivos_faltantes.includes('corridas/')
+  };
+  const todosPresentes = Object.values(obligPresentes).every(Boolean);
+
+  const scenarioGroups = new Set<string>();
+  for (const c of data.corridas) {
+    const parts = c.nombre.split('/');
+    if (parts.length > 1) {
+      scenarioGroups.add(parts[0] === 'corridas' ? parts[1] || parts[0] : parts[0]);
+    } else {
+      const match = c.nombre.match(/^([0-9]{1,2}(?:-[a-z0-9_-]+)?|corrida[_-]?[0-9a-z]+|caso[_-]?[0-9a-z]+)/i);
+      scenarioGroups.add(match ? match[1] : c.nombre);
+    }
+  }
+  const corridasDetectadas = scenarioGroups.size > 0 ? scenarioGroups.size : data.corridas.length;
+
   const fase0 = {
     afirmaciones_verificadas: Array.isArray(rawFase0.afirmaciones_verificadas)
       ? rawFase0.afirmaciones_verificadas.map((a: any) => typeof a === 'string' ? { afirmacion: a, cita: '', archivo: 'README.md' } : a)
@@ -980,7 +1028,11 @@ export function normalizeEvaluatorResult(rawParsed: any, data: ExtractedRepoData
       ? (rawFase0.inconsistencias || rawFase0.inconsistencias_encontradas).map((inc: any) => 
           typeof inc === 'string' ? { descripcion: inc, archivos_involucrados: [], severidad: 'leve' } : inc
         )
-      : []
+      : [],
+    archivos_obligatorios_presentes: rawFase0.archivos_obligatorios_presentes || obligPresentes,
+    todos_archivos_presentes: typeof rawFase0.todos_archivos_presentes === 'boolean' ? rawFase0.todos_archivos_presentes : todosPresentes,
+    corridas_detectadas: typeof rawFase0.corridas_detectadas === 'number' && rawFase0.corridas_detectadas > 0 ? rawFase0.corridas_detectadas : corridasDetectadas,
+    consistencia_metricas_readme: typeof rawFase0.consistencia_metricas_readme === 'boolean' ? rawFase0.consistencia_metricas_readme : true
   };
 
   // 5. Extract anti-fraud protocol
