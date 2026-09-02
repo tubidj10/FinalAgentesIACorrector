@@ -40,7 +40,7 @@ export function buildUserPrompt(data: ExtractedRepoData): string {
 
   const bloquesCorridas = data.corridas.length > 0
     ? data.corridas.map(c => {
-        const rutaCompleta = c.nombre.startsWith('corridas/') ? c.nombre : `corridas/${c.nombre}`;
+        const rutaCompleta = c.nombre.includes('/') ? c.nombre : `corridas/${c.nombre}`;
         return `<archivo ruta="${rutaCompleta}">\n${c.contenido}\n</archivo>`;
       }).join('\n\n')
     : '';
@@ -49,16 +49,35 @@ export function buildUserPrompt(data: ExtractedRepoData): string {
     ? data.archivos_codigo.map(c => `<archivo ruta="${c.ruta}">\n${c.contenido}\n</archivo>`).join('\n\n')
     : '[SIN CÓDIGO ACCESIBLE — la revisión de código queda corta, esto no afecta el puntaje]';
 
-  const allExistingFiles = new Set([
-    ...Object.keys(data.archivos_obligatorios).filter(k => data.archivos_obligatorios[k] !== null),
-    ...data.archivos_codigo.map(c => c.ruta),
-    ...data.corridas.map(c => c.nombre.startsWith('corridas/') ? c.nombre : 'corridas/' + c.nombre),
-    ...data.corridas.map(c => c.nombre.replace(/^corridas\//, ''))
-  ]);
+  const allExistingFiles = new Set<string>();
+  const allExistingBasenames = new Set<string>();
+
+  for (const k of Object.keys(data.archivos_obligatorios)) {
+    if (data.archivos_obligatorios[k] !== null) {
+      allExistingFiles.add(k.toLowerCase());
+      allExistingBasenames.add(k.split('/').pop()!.toLowerCase());
+    }
+  }
+  for (const c of data.archivos_codigo) {
+    allExistingFiles.add(c.ruta.toLowerCase());
+    allExistingBasenames.add(c.ruta.split('/').pop()!.toLowerCase());
+  }
+  for (const c of data.corridas) {
+    allExistingFiles.add(c.nombre.toLowerCase());
+    allExistingBasenames.add(c.nombre.split('/').pop()!.toLowerCase());
+  }
 
   const allTexts = [data.archivos_obligatorios['README.md'] || '', data.archivos_obligatorios['DECISIONES.md'] || ''].join('\n');
-  const matches = Array.from(allTexts.matchAll(/\b([a-zA-Z0-9_\-]+\.md)\b/g)).map(m => m[1]);
-  const referencedMissing = [...new Set(matches)].filter(f => !allExistingFiles.has(f) && !allExistingFiles.has('prompts/' + f));
+  const matches = Array.from(allTexts.matchAll(/\b([a-zA-Z0-9_\-\/]+\.md)\b/gi)).map(m => m[1]);
+  const referencedMissing = [...new Set(matches)].filter(f => {
+    const lowerF = f.toLowerCase();
+    const baseName = lowerF.split('/').pop()!;
+    // Si existe con la ruta completa o por su basename en cualquier subdirectorio, NO falta
+    if (allExistingFiles.has(lowerF) || allExistingBasenames.has(baseName)) return false;
+    // Ignorar citas a rubrica o guías de la cátedra
+    if (['rubrica.md', 'parcial.md', 'feedback.md', 'calibracion.md', 'evaluacion.md'].includes(baseName)) return false;
+    return true;
+  });
 
   const missingFilesBlock = referencedMissing.length > 0
     ? `\n<auditoria_archivos_fase0>
@@ -259,18 +278,23 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
           parsed.request || parsed.messages || parsed.input || parsed.ticket_id ||
           parsed.response || parsed.output || parsed.evaluacion || parsed.diagnostico ||
           parsed.usage || parsed.tokens || parsed.tokens_prompt || parsed.duracion_segundos ||
-          parsed.metadata || parsed.llamadas_herramienta || Array.isArray(parsed)
+          parsed.metadata || parsed.llamadas_herramienta || parsed.estado || parsed.consulta_id ||
+          parsed.paquete_recomendado || parsed.datos_faltantes || (Object.keys(parsed).length >= 2) ||
+          Array.isArray(parsed)
         );
       }
       return false;
     } catch {
       return false;
     }
-  }) || (corridas.length >= 2 && /"tokens|"input|"output|"ticket|"messages/i.test(allCorridasContent));
+  }) || (corridas.length >= 2 && /"tokens|"input|"output|"ticket|"messages|"estado/i.test(allCorridasContent));
 
   const hasHandledError = (
-    /429|rate_limit|retry|reintento|fallback|servicio_no_encontrado|no_encontrado|fallo|timeout|exception|error_manejado|fallida/i.test(allCorridasContent) ||
-    corridas.some(c => c.nombre.toLowerCase().includes('error') || c.nombre.toLowerCase().includes('429') || c.nombre.toLowerCase().includes('no_encontrado') || c.nombre.toLowerCase().includes('fall'))
+    /429|rate_limit|retry|reintento|fallback|servicio_no_encontrado|no_encontrado|fallo|timeout|exception|error_manejado|fallida|requiere_datos|caso-limite|caso-riesgoso|datos_faltantes|rechazado|bloqueado/i.test(allCorridasContent) ||
+    corridas.some(c => {
+      const n = c.nombre.toLowerCase();
+      return n.includes('error') || n.includes('429') || n.includes('limite') || n.includes('riesgo') || n.includes('fall') || n.includes('no_encontrado');
+    })
   );
 
   const hasExplicitRetriesOrTrace = corridas.some(c => {
@@ -524,12 +548,14 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   });
 
   // D4: Análisis económico (15%)
-  const hasFormula = /\b(\$|USD|tokens?|1e6|\d+\.\d+)\b/i.test(readme) && /(\*|\+|\/|por llamada|por corrida|por ticket)/i.test(readme);
-  const hasProjections = /peor caso|escenario|proyecci|mensual|anual|30 trabajos|escala/i.test(readme);
-  const hasTokenCounts = /(\d+[\s,.]\d+|\d+)\s*(tokens?|caracteres)/i.test(readme);
-  const hasModelJustification = /más chico|mas chico|elección de modelo|eleccion de modelo|justificaci|elegido por|criterio.*modelo/i.test(readme);
-  const hasPromptCachingSensitivity = /cach[eé]\s+sensitivity|amortizaci[oó]n|sin\s+cache.*con\s+cache|con\s+prompt\s+caching|ahorro\s+por\s+cache|curva\s+de\s+costo/i.test(readme);
-  const hasPeakLoadSLO = /pico|p95|p99|latencia.*costo|slo|concurren/i.test(readme);
+  const costosDoc = data.archivos_codigo.find(c => c.ruta.toLowerCase().includes('costos'))?.contenido || '';
+  const economicContent = [readme, costosDoc].join('\n');
+  const hasFormula = /\b(\$|USD|tokens?|1e6|\d+\.\d+)\b/i.test(economicContent) && /(\*|\+|\/|por llamada|por corrida|por ticket|por mill)/i.test(economicContent);
+  const hasProjections = /peor caso|escenario|proyecci|mensual|anual|semanal|pico|escala/i.test(economicContent);
+  const hasTokenCounts = /(\d+[\s,.]\d+|\d+)\s*(tokens?|caracteres)/i.test(economicContent);
+  const hasModelJustification = /más chico|mas chico|elección de modelo|eleccion de modelo|justificaci|elegido por|criterio.*modelo|sensibles? a costo/i.test(economicContent);
+  const hasPromptCachingSensitivity = /cach[eé]|amortizaci[oó]n|sin\s+cache.*con\s+cache|con\s+prompt\s+caching|ahorro\s+por\s+cache|curva\s+de\s+costo/i.test(economicContent);
+  const hasPeakLoadSLO = /pico|p95|p99|latencia.*costo|slo|concurren/i.test(economicContent);
 
   let d4Score = 1;
   let d4Checklist: any[] = [];
@@ -546,17 +572,17 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     if (hasPromptCachingSensitivity || hasPeakLoadSLO) {
       d4Score = 10;
       d4Checklist = [
-        { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
+        { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md o COSTOS.md." },
         { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
         { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
-        { item: "Justifica la elección de modelo con criterio de la materia", cumple: true, evidencia: hasModelJustification ? "Justificación explícita documentada en README.md." : "Elección de modelo documentada para la tarea." },
-        { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios múltiples." },
+        { item: "Justifica la elección de modelo con criterio de la materia", cumple: true, evidencia: hasModelJustification ? "Justificación explícita documentada." : "Elección de modelo documentada para la tarea." },
+        { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios múltiples y picos." },
         { item: "Análisis de optimizaciones y amortización de Prompt Caching / SLO", cumple: true, evidencia: "Evaluación formal de caching y curvas de escala." }
       ];
     } else {
       d4Score = 9.5;
       d4Checklist = [
-        { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
+        { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md o COSTOS.md." },
         { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
         { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
         { item: "Justifica la elección de modelo con criterio de la materia", cumple: true, evidencia: hasModelJustification ? "Justificación explícita documentada." : "Mención de modelo sin comparativa." },
@@ -583,7 +609,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     puntaje_asignado: `${d4Score}/10`,
     puntaje_ponderado: d4Pond.toFixed(1),
     escala_elegida: d4Score === 10 ? "EXCELENTE (10/10)" : d4Score >= 9 ? "SOBRESALIENTE (9.5/10)" : d4Score >= 5 ? "REGULAR (5/10)" : "DEFICIENTE",
-    evidencia_citada: "README.md con desglose matemático de tokens input/output, supuestos de volumen y peor caso",
+    evidencia_citada: "README.md y COSTOS.md con desglose matemático de tokens input/output, supuestos y escenarios",
     sugerencia_concreta: d4Score === 10
       ? "Nivel máximo alcanzado (10/10): Fórmula desagregada por llamada, supuestos de tokens, peor caso y análisis de prompt caching auditados."
       : "Para alcanzar 10/10 perfecto: Agregar una matriz de sensibilidad comparando el costo con vs sin Prompt Caching (context caching) y el impacto financiero de picos de carga sobre el SLO.",
@@ -597,10 +623,12 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   });
 
   // D5: Gobierno y riesgo (15%)
-  const hasL0L4 = /L0|L1|L2|L3|L4/i.test(repoAllContent);
-  const hasLimits = /qué no hace|alcance descartado|no responde|no escribe|no ejecuta/i.test(repoAllContent);
-  const hasHumanInLoop = /human-in-the-loop|aprobación humana|revisión humana/i.test(repoAllContent);
-  const hasStrictOutputValidation = /(?:BaseModel|pydantic|zod|response_schema|validate_schema|schema_validator|json_schema)/i.test(allRepoCodeText);
+  const riesgosDoc = data.archivos_codigo.find(c => c.ruta.toLowerCase().includes('riesgos'))?.contenido || '';
+  const governanceContent = [repoAllContent, riesgosDoc].join('\n');
+  const hasL0L4 = /L0|L1|L2|L3|L4/i.test(governanceContent);
+  const hasLimits = /qué no hace|alcance descartado|no responde|no escribe|no ejecuta|no confirma|no envía/i.test(governanceContent);
+  const hasHumanInLoop = /human-in-the-loop|aprobación humana|revisión humana|revisión.*L2/i.test(governanceContent);
+  const hasStrictOutputValidation = /(?:BaseModel|pydantic|zod|response_schema|validate_schema|schema_validator|json_schema|strict)/i.test(allRepoCodeText);
 
   let d5Score = 4;
   let d5Checklist: any[] = [];

@@ -483,12 +483,61 @@ export async function extractRepoContents(
       }
     }
 
-    // B. Find Run / Corridas files (even in subfolders)
-    const corridaBlobPaths = treeBlobs.filter(p => {
+    // B. Find Run / Corridas files ANYWHERE in the repository tree (e.g. corridas/,
+    // calibracion/corridas/, evaluacion/corridas/, agente/corridas/, tests/corridas/, runs/, logs/, etc.)
+    const isCorridaBlob = (p: string): boolean => {
       const lower = p.toLowerCase();
-      return (lower.startsWith('corridas/') || lower.startsWith('runs/') || lower.startsWith('logs/')) &&
-        (lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.md'));
-    }).slice(0, 15);
+      // Descartar directorios de build/sistema
+      if (
+        lower.includes('node_modules/') ||
+        lower.includes('.git/') ||
+        lower.includes('.github/') ||
+        lower.includes('.venv/') ||
+        lower.includes('venv/') ||
+        lower.includes('dist/') ||
+        lower.includes('build/') ||
+        lower.includes('__pycache__/')
+      ) {
+        return false;
+      }
+
+      // Extensiones de evidencia válidas
+      const validExt = lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.md');
+      if (!validExt) return false;
+
+      // Descartar archivos raíz que corresponden a documentación principal
+      if (lower === 'readme.md' || lower === 'decisiones.md') return false;
+
+      const segments = lower.split('/');
+      const fileName = segments[segments.length - 1];
+
+      // 1. Está dentro de una carpeta cuyo nombre es o contiene "corridas", "runs", "logs", "ejecuciones", "traces", etc.
+      const dirSegments = segments.slice(0, -1);
+      const isInCorridaDir = dirSegments.some(seg => 
+        seg === 'corridas' ||
+        seg === 'runs' ||
+        seg === 'logs' ||
+        seg === 'ejecuciones' ||
+        seg === 'traces' ||
+        seg === 'salidas' ||
+        seg.includes('corrida') ||
+        seg.includes('eval_run') ||
+        seg.includes('test_run')
+      );
+
+      if (isInCorridaDir) return true;
+
+      // 2. Archivo suelto en raíz o subdirectorio con nombre explícito de corrida/ejecución
+      return (
+        fileName.startsWith('corrida_') ||
+        fileName.startsWith('run_') ||
+        fileName.startsWith('ejecucion_') ||
+        fileName.startsWith('trace_') ||
+        fileName.startsWith('eval_run_')
+      );
+    };
+
+    const corridaBlobPaths = treeBlobs.filter(isCorridaBlob).slice(0, 25);
 
     // C. Find Code & Manifest Files (e.g. agente/*.py, *.py, *.sh, *.ts, requirements.txt, requirements.lock)
     const codeBlobPaths = treeBlobs.filter(p => {
@@ -520,8 +569,7 @@ export async function extractRepoContents(
       })),
       Promise.all(corridaBlobPaths.map(async (path) => {
         const content = await fetchGitHubFile(owner, repo, path, githubToken);
-        const relName = path.replace(/^(?:corridas|runs|logs)\//i, '');
-        return { nombre: relName, contenido: content };
+        return { nombre: path, contenido: content };
       })),
       Promise.all(codeBlobPaths.map(async (path) => {
         const content = await fetchGitHubFile(owner, repo, path, githubToken);
@@ -571,19 +619,65 @@ export async function extractRepoContents(
       return { ruta, content: null };
     });
 
-    const corridasDirPromise = (async () => {
-      let items = await fetchGitHubDirectory(owner, repo, 'corridas', githubToken);
-      if (items.length === 0) items = await fetchGitHubDirectory(owner, repo, 'logs', githubToken);
-      if (items.length === 0) items = await fetchGitHubDirectory(owner, repo, 'runs', githubToken);
-      return items;
-    })();
+    const rootItems = await fetchGitHubDirectory(owner, repo, '', githubToken);
 
-    const rootItemsPromise = fetchGitHubDirectory(owner, repo, '', githubToken);
+    // Resolve corridas in Fallback mode: check root folders and subdirectories
+    const resolveCorridasFallback = async (): Promise<{ path: string; name: string }[]> => {
+      const candidates: { path: string; name: string }[] = [];
+      const primaryDirs = ['corridas', 'runs', 'logs', 'ejecuciones', 'traces', 'salidas'];
+      
+      let foundDir = '';
+      for (const dir of primaryDirs) {
+        const items = await fetchGitHubDirectory(owner, repo, dir, githubToken);
+        if (items.length > 0) {
+          foundDir = dir;
+          const files = items.filter(i => i.type === 'file');
+          const subdirs = items.filter(i => i.type === 'dir').slice(0, 5);
+          for (const f of files.slice(0, 10)) {
+            candidates.push({ path: `${dir}/${f.name}`, name: `${dir}/${f.name}` });
+          }
+          for (const sub of subdirs) {
+            const subItems = await fetchGitHubDirectory(owner, repo, `${dir}/${sub.name}`, githubToken);
+            for (const sf of subItems.filter(i => i.type === 'file').slice(0, 5)) {
+              candidates.push({ path: `${dir}/${sub.name}/${sf.name}`, name: `${dir}/${sub.name}/${sf.name}` });
+            }
+          }
+          break;
+        }
+      }
 
-    const [obligatoryResults, itemsCorridas, rootItems] = await Promise.all([
+      // If not in root primary dirs, search in subdirectories (e.g. calibracion/corridas, evaluacion/corridas, agente/corridas)
+      if (candidates.length === 0) {
+        const rootDirs = rootItems.filter(i => i.type === 'dir').slice(0, 8);
+        for (const rd of rootDirs) {
+          if (rd.name.startsWith('.') || rd.name === 'node_modules' || rd.name === 'dist') continue;
+          for (const subName of primaryDirs) {
+            const nestedItems = await fetchGitHubDirectory(owner, repo, `${rd.name}/${subName}`, githubToken);
+            if (nestedItems.length > 0) {
+              for (const f of nestedItems.filter(i => i.type === 'file').slice(0, 10)) {
+                candidates.push({ path: `${rd.name}/${subName}/${f.name}`, name: `${rd.name}/${subName}/${f.name}` });
+              }
+              break;
+            }
+          }
+          if (candidates.length > 0) break;
+        }
+      }
+
+      // If still nothing, check for files in root matching corrida_*.json, run_*.json
+      if (candidates.length === 0) {
+        const rootFiles = rootItems.filter(i => i.type === 'file' && (i.name.startsWith('corrida_') || i.name.startsWith('run_') || i.name.startsWith('eval_')));
+        for (const rf of rootFiles.slice(0, 10)) {
+          candidates.push({ path: rf.name, name: rf.name });
+        }
+      }
+
+      return candidates;
+    };
+
+    const [obligatoryResults, fallbackCorridas] = await Promise.all([
       Promise.all(obligatoryPromises),
-      corridasDirPromise,
-      rootItemsPromise
+      resolveCorridasFallback()
     ]);
 
     for (const { ruta, content } of obligatoryResults) {
@@ -593,36 +687,17 @@ export async function extractRepoContents(
       }
     }
 
-    const fileCorridas = itemsCorridas.filter(i => i.type === 'file').slice(0, 10);
-    const dirCorridas = itemsCorridas.filter(i => i.type === 'dir').slice(0, 5);
-
-    if (fileCorridas.length === 0 && dirCorridas.length === 0) {
+    if (fallbackCorridas.length === 0) {
       archivos_faltantes.push('corridas/');
     } else {
-      const filePromises = fileCorridas.map(async (item) => {
-        const content = await fetchGitHubFile(owner, repo, `corridas/${item.name}`, githubToken) ||
-                        await fetchGitHubFile(owner, repo, `logs/${item.name}`, githubToken) ||
-                        await fetchGitHubFile(owner, repo, `runs/${item.name}`, githubToken);
-        return { nombre: item.name, contenido: content };
-      });
-
-      const subDirPromises = dirCorridas.map(async (dirItem) => {
-        const subItems = await fetchGitHubDirectory(owner, repo, `corridas/${dirItem.name}`, githubToken);
-        const subFiles = subItems.filter(s => s.type === 'file').slice(0, 5);
-        return Promise.all(subFiles.map(async (sf) => {
-          const content = await fetchGitHubFile(owner, repo, `corridas/${dirItem.name}/${sf.name}`, githubToken);
-          return { nombre: `${dirItem.name}/${sf.name}`, contenido: content };
-        }));
-      });
-
-      const [directResults, subDirNestedResults] = await Promise.all([
-        Promise.all(filePromises),
-        Promise.all(subDirPromises)
-      ]);
-
-      const allFetchedCorridas = [...directResults, ...subDirNestedResults.flat()];
-      for (const c of allFetchedCorridas) {
-        if (c && c.contenido !== null) {
+      const fetchedFallbackCorridas = await Promise.all(
+        fallbackCorridas.map(async (c) => {
+          const content = await fetchGitHubFile(owner, repo, c.path, githubToken);
+          return { nombre: c.name, contenido: content };
+        })
+      );
+      for (const c of fetchedFallbackCorridas) {
+        if (c.contenido !== null) {
           corridas.push({ nombre: c.nombre, contenido: c.contenido });
         }
       }
