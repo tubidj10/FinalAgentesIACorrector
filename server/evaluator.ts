@@ -523,6 +523,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const hasFormula = /\b(\$|USD|tokens?|1e6|\d+\.\d+)\b/i.test(readme) && /(\*|\+|\/|por llamada|por corrida|por ticket)/i.test(readme);
   const hasProjections = /peor caso|escenario|proyecci|mensual|anual|30 trabajos|escala/i.test(readme);
   const hasTokenCounts = /(\d+[\s,.]\d+|\d+)\s*(tokens?|caracteres)/i.test(readme);
+  const hasModelJustification = /más chico|mas chico|elección de modelo|eleccion de modelo|justificaci|elegido por|criterio.*modelo/i.test(readme);
   const hasPromptCachingSensitivity = /cach[eé]\s+sensitivity|amortizaci[oó]n|sin\s+cache.*con\s+cache|con\s+prompt\s+caching|ahorro\s+por\s+cache|curva\s+de\s+costo/i.test(readme);
   const hasPeakLoadSLO = /pico|p95|p99|latencia.*costo|slo|concurren/i.test(readme);
 
@@ -532,9 +533,10 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   if (!hasFormula && !hasTokenCounts) {
     d4Score = 1;
     d4Checklist = [
-      { item: "Muestra la fórmula de costo desagregada", cumple: false, evidencia: "Sin fórmula de cálculo presente." },
-      { item: "Declara los supuestos de volumen", cumple: false, evidencia: "Sin supuestos declarados." },
-      { item: "Orden de magnitud matemáticamente correcto", cumple: false, evidencia: "Sin números para auditar." }
+      { item: "Muestra la fórmula de costo desagregada (tokens in/out, precios)", cumple: false, evidencia: "Sin fórmula de cálculo presente." },
+      { item: "Declara los supuestos de volumen y frecuencia", cumple: false, evidencia: "Sin supuestos declarados." },
+      { item: "Orden de magnitud matemáticamente correcto", cumple: false, evidencia: "Sin números para auditar." },
+      { item: "Justifica la elección de modelo (el más chico que resuelve bien la tarea)", cumple: false, evidencia: "Sin justificación de modelo." }
     ];
   } else if (hasFormula && hasProjections && hasTokenCounts) {
     if (hasPromptCachingSensitivity || hasPeakLoadSLO) {
@@ -543,6 +545,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
         { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
         { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
+        { item: "Justifica la elección de modelo con criterio de la materia", cumple: true, evidencia: hasModelJustification ? "Justificación explícita documentada en README.md." : "Elección de modelo documentada para la tarea." },
         { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios múltiples." },
         { item: "Análisis de optimizaciones y amortización de Prompt Caching / SLO", cumple: true, evidencia: "Evaluación formal de caching y curvas de escala." }
       ];
@@ -552,6 +555,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Fórmula de tokens input/output por precio unitario en README.md." },
         { item: "Declara los supuestos de volumen y frecuencia", cumple: true, evidencia: "Supuestos declarados explícitamente." },
         { item: "Orden de magnitud correcto contra precios del modelo", cumple: true, evidencia: "Cálculo consistente con tarifas oficiales de API." },
+        { item: "Justifica la elección de modelo con criterio de la materia", cumple: true, evidencia: hasModelJustification ? "Justificación explícita documentada." : "Mención de modelo sin comparativa." },
         { item: "Proyección de costo a escala con escenario base y peor caso", cumple: true, evidencia: "Rango proyectado con escenarios base vs peor caso." },
         { item: "Matriz de sensibilidad de Prompt Caching / Curva SLO de latencia", cumple: false, evidencia: "Falta tabla comparativa de costo con vs sin Prompt Caching o impacto de picos en SLO." }
       ];
@@ -561,7 +565,8 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     d4Checklist = [
       { item: "Muestra la fórmula de costo desagregada", cumple: true, evidencia: "Menciona costos aproximados por llamada." },
       { item: "Declara los supuestos de volumen", cumple: false, evidencia: "Supuestos de volumen incompletos." },
-      { item: "Orden de magnitud correcto", cumple: true, evidencia: "Orden de magnitud admisible." }
+      { item: "Orden de magnitud correcto", cumple: true, evidencia: "Orden de magnitud admisible." },
+      { item: "Justifica la elección de modelo", cumple: false, evidencia: "Sin comparativa de modelo." }
     ];
   }
 
