@@ -328,11 +328,18 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   // =========================================================================
   // 7. CALIDAD DE HERRAMIENTAS (TOOL CALLING): Declaración y Validación
   // =========================================================================
-  const hasToolDeclaration = /tools\s*:\s*\[|functionDeclarations|tool_calls|tools_schema|function_call/i.test(allRepoCode);
-  const hasToolInputValidation = (
-    /ventana_minutos|params|schema|Type\.OBJECT|pydantic|zod|min_value|max_value|fuera_de_rango|minimum|maximum|exclusiveMinimum|exclusiveMaximum|enum|ValueError|TypeError|Field\(|conint|constr|ge\s*=|le\s*=|gt\s*=|lt\s*=/i.test(allRepoCode)
+  const hasExplicitL0L4 = /\bL[0-4]\b|L0[–-]L4/i.test(allRepoCode);
+  const hasToolDeclaration = (
+    /tools\s*[:=]\s*\[|tools\s*=\s*|functionDeclarations|function_declarations|tool_calls|tools_schema|function_call|@tool\b|bind_tools\b|types\.Tool\b|FunctionDeclaration|BaseTool\b|StructuredTool\b|def (?:execute|call|run|dispatch)_tool\b|def (?:ejecutar_)?herramienta\b|herramientas\s*[:=]\s*\[|HERRAMIENTAS\s*[:=]\s*\[|#+\s*Herramientas|matriz\s+de\s+herramientas|clasificaci[oó]n\s+L0[–-]L4/i.test(allRepoCode) ||
+    data.archivos_codigo.some(c => /herramienta|tool/i.test(c.ruta)) ||
+    hasExplicitL0L4
   );
-  const hasToolErrorHandling = /tool.*status|tool_error|status:\s*400|error.*monitoreo|error.*tool|except\s+(?:ValueError|Exception|KeyError)|raise\s+ValueError/i.test(allRepoCode);
+  const hasToolInputValidation = (
+    /ventana_minutos|params|schema|Type\.OBJECT|pydantic|zod|min_value|max_value|fuera_de_rango|minimum|maximum|exclusiveMinimum|exclusiveMaximum|enum|ValueError|TypeError|Field\(|conint|constr|ge\s*=|le\s*=|gt\s*=|lt\s*=|isinstance\b|re\.search|validar_schema/i.test(allRepoCode)
+  );
+  const hasToolErrorHandling = (
+    /tool.*status|tool_error|status:\s*400|error.*monitoreo|error.*tool|except\s+(?:ValueError|Exception|KeyError|HTTPError|RuntimeError)|raise\s+(?:ValueError|RuntimeError|Exception)|reintentar|exponential_backoff|backoff|jitter|429|503/i.test(allRepoCode)
+  );
 
   let calidadHerramientas: 'ROBUSTA' | 'BASICA' | 'DEFICIENTE' = 'DEFICIENTE';
   if (hasToolDeclaration && hasToolInputValidation && hasToolErrorHandling) {
@@ -343,8 +350,8 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
       categoria: 'calidad_herramientas',
       estado: 'aprobado',
       puntaje_impacto: 0,
-      descripcion: 'Herramientas declaradas con schema formal (types/properties), validación de rangos y manejo explícito de errores.',
-      evidencia: 'Definición de functionDeclarations o tools con validación de parámetros y respuestas de error.',
+      descripcion: 'Herramientas o acciones del agente declaradas con schema formal o matriz L0–L4, validación de parámetros y control defensivo de errores.',
+      evidencia: 'Definición formal de herramientas/acciones con validación de entradas y manejo estructurado de excepciones.',
       recomendacion: 'Diseño de herramientas robusto para arquitecturas agénticas en producción.'
     });
   } else if (hasToolDeclaration) {
@@ -354,10 +361,10 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
       nombre: 'Validación de Parámetros en Herramientas',
       categoria: 'calidad_herramientas',
       estado: 'advertencia',
-      puntaje_impacto: -3,
-      descripcion: 'Herramientas declaradas pero carecen de validación de límites/rangos en parámetros de entrada (ej. min/max o tipos estrictos).',
-      evidencia: 'Herramientas sin validación explícita de límites defensivos.',
-      recomendacion: 'Validar parámetros de entrada antes de ejecutar la función (ej. rangos numéricos, schemas Pydantic/Zod).'
+      puntaje_impacto: -2,
+      descripcion: 'Herramientas o acciones declaradas pero carecen de validación exhaustiva de límites/tipos o manejo defensivo de fallos.',
+      evidencia: 'Herramientas presentes sin validación explícita de límites defensivos o excepciones.',
+      recomendacion: 'Validar parámetros de entrada antes de ejecutar la función (ej. rangos numéricos, schemas Pydantic/Zod o assertions).'
     });
   } else {
     calidadHerramientas = 'DEFICIENTE';
@@ -367,9 +374,9 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
       categoria: 'calidad_herramientas',
       estado: 'advertencia',
       puntaje_impacto: -4,
-      descripcion: 'No se detectó uso de herramientas estructuradas (Function Calling) o el agente opera exclusivamente con texto plano.',
-      evidencia: 'Sin schemas de tools ni declaraciones de function calling.',
-      recomendacion: 'Definir herramientas agénticas con schemas formales para consultas a servicios externos.'
+      descripcion: 'No se detectó uso de herramientas estructuradas (Function Calling) ni matriz de acciones clasificadas; el agente opera exclusivamente con texto plano.',
+      evidencia: 'Sin schemas de tools, funciones de interacción externa ni clasificación L0–L4.',
+      recomendacion: 'Definir herramientas agénticas con schemas formales o matriz de acciones delimitadas para consultas a servicios externos.'
     });
   }
 
@@ -377,10 +384,13 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   // 8. EVALUACIÓN AUTOMATIZADA Y TEST HARNESS (LLM-as-a-Judge / Tests)
   // =========================================================================
   const hasAutomatedTests = (
-    /pytest|unittest|jest|vitest|test_cases|casos_prueba|test_corrida|test_monitoreo|evaluateDeterministically/i.test(allRepoCode) ||
-    data.archivos_codigo.some(c => c.ruta.toLowerCase().includes('test') || c.ruta.toLowerCase().includes('spec'))
+    /pytest|unittest|jest|vitest|mocha|test_cases|casos_prueba|test_corrida|test_monitoreo|evaluateDeterministically|def test_|class Test|assert\s+|validar_schema_pydantic|model_validate|ejecutar_evaluacion|run_eval|evaluate\(/i.test(allRepoCode) ||
+    data.archivos_codigo.some(c => /test|spec|eval|benchmark|ejecutar_evaluacion/i.test(c.ruta))
   );
-  const hasGoldenDataset = /casos|fixtures|dataset|ground_truth|benchmarks|alertas_prueba/i.test(allRepoCode);
+  const hasGoldenDataset = (
+    /casos|fixtures|dataset|ground_truth|benchmarks|alertas_prueba|casos_prueba|golden/i.test(allRepoCode) ||
+    corridas.length >= 2
+  );
 
   let evaluacionAutomatizada: 'INTEGRADA' | 'MANUAL' | 'INEXISTENTE' = 'INEXISTENTE';
   if (hasAutomatedTests && hasGoldenDataset) {
@@ -391,8 +401,8 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
       categoria: 'evaluacion_automatizada',
       estado: 'aprobado',
       puntaje_impacto: 0,
-      descripcion: 'El repositorio incluye suite de pruebas automatizadas o dataset de evaluación (fixtures/casos de prueba) verificable.',
-      evidencia: 'Presencia de fixtures de prueba, validaciones o scripts de test harness.',
+      descripcion: 'El repositorio incluye suite de pruebas automatizadas o runner de evaluación (ej. script de evals, pytest, assertions) con dataset de corridas/fixtures verificable.',
+      evidencia: 'Presencia de runner o scripts de test harness con artefactos de prueba empíricos estructurados.',
       recomendacion: 'Excelente práctica de evaluación continua (Evals).'
     });
   } else if (hasGoldenDataset || hasAutomatedTests) {

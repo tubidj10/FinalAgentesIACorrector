@@ -66,7 +66,8 @@ const EXTENSIONES_CODIGO = new Set([
 const MANIFEST_NAMES = new Set([
   "requirements.txt", "requirements.lock", "pipfile", "pipfile.lock",
   "pyproject.toml", "package.json", "package-lock.json", "dockerfile",
-  ".env.example", "costos.md", "riesgos.md", "arquitectura.md", "evidencias.md"
+  ".env.example", "costos.md", "riesgos.md", "arquitectura.md", "evidencias.md",
+  "herramientas.md", "tools.md", "evaluacion.md"
 ]);
 
 // In-memory cache for extracted repo data (TTL: 5 minutes)
@@ -353,7 +354,7 @@ export async function extractRepoContents(
             nombre: filePath.replace('corridas/', ''),
             contenido: content
           });
-        } else if (!RUTAS_OBLIGATORIAS.includes(filePath) && (filePath.endsWith('.py') || filePath.endsWith('.ts') || filePath.endsWith('.js'))) {
+        } else if (!RUTAS_OBLIGATORIAS.includes(filePath) && (filePath.endsWith('.py') || filePath.endsWith('.ts') || filePath.endsWith('.js') || filePath.endsWith('.json') || filePath.endsWith('.txt') || filePath.endsWith('.lock') || filePath.startsWith('agente/'))) {
           archivos_codigo.push({
             ruta: filePath,
             contenido: content
