@@ -466,6 +466,23 @@ export async function extractRepoContents(
     if (userPromptPath) pathsToFetch.push({ key: 'prompts/user_prompt.md', actualPath: userPromptPath });
     if (decisionesPath) pathsToFetch.push({ key: 'DECISIONES.md', actualPath: decisionesPath });
 
+    // Archivos citados por nombre en README/DECISIONES (ej. "agente/modo_chat.md",
+    // "COSTOS.md"): se priorizan en el barrido de código de abajo para que, si el
+    // archivo existe de verdad en el repo, no quede afuera del tope de 20 y la Fase 0
+    // no lo marque como "referenciado pero no entregado" por un falso negativo de
+    // extracción — eso penalizaría al repo evaluado por un límite nuestro, no suyo.
+    const referencedFilenames = new Set<string>();
+    if (readmePath || decisionesPath) {
+      const [readmeForScan, decisionesForScan] = await Promise.all([
+        readmePath ? fetchGitHubFile(owner, repo, readmePath, githubToken) : Promise.resolve(''),
+        decisionesPath ? fetchGitHubFile(owner, repo, decisionesPath, githubToken) : Promise.resolve(''),
+      ]);
+      const scanText = `${readmeForScan}\n${decisionesForScan}`;
+      for (const m of scanText.matchAll(/\b([a-zA-Z0-9_\-\/]+\.(?:md|txt|json))\b/gi)) {
+        referencedFilenames.add(m[1].toLowerCase().split('/').pop()!);
+      }
+    }
+
     // B. Find Run / Corridas files (even in subfolders)
     const corridaBlobPaths = treeBlobs.filter(p => {
       const lower = p.toLowerCase();
@@ -483,7 +500,13 @@ export async function extractRepoContents(
     }).sort((a, b) => {
       const baseA = a.toLowerCase().split('/').pop() || '';
       const baseB = b.toLowerCase().split('/').pop() || '';
-      // Manifests first, then agent/runner scripts
+      // Prioridad 1: archivos citados por nombre en README/DECISIONES (evita falsos
+      // positivos de "archivo referenciado pero no entregado" en la Fase 0).
+      const refA = referencedFilenames.has(baseA);
+      const refB = referencedFilenames.has(baseB);
+      if (refA && !refB) return -1;
+      if (refB && !refA) return 1;
+      // Prioridad 2: manifests (requirements.txt, package.json, etc.)
       if (MANIFEST_NAMES.has(baseA)) return -1;
       if (MANIFEST_NAMES.has(baseB)) return 1;
       return 0;

@@ -114,39 +114,53 @@ a nosotros mismos. Faltaba hasta que la auto-evaluación de
 punto más flojo del repo.
 
 **Costo por corrida (medido sobre archivos reales de este repositorio, no
-estimado a ojo):**
+estimado a ojo), con un rango mínimo–máximo, no un único número:**
 
 - El "prompt de sistema" de cada corrida es `agente/system_prompt.md` +
-  `rubrica.md` completos: **38.903 caracteres** (medido con `wc -c`).
+  `rubrica.md` completos: **38.903 caracteres** (medido con `wc -c`), fijo
+  en toda corrida sin importar el repo evaluado.
 - El "prompt de usuario" es el contenido de las 5 rutas obligatorias del
-  repo evaluado. Usamos `tubidj10/FinalAgentesIA` como referencia real
-  (uno de los repos más completos que este corrector auditó, no el más
-  chico — para no subestimar el caso típico): README.md (19.859) +
-  DECISIONES.md (23.268) + prompts/system_prompt.md (8.380) +
-  prompts/user_prompt.md (1.468) + corridas/ completo (16.044) =
-  **69.019 caracteres**.
+  repo evaluado, y varía con el tamaño real de cada repo — medimos los dos
+  extremos reales que tenemos, no uno solo:
+  - **Mínimo** (`casos/flojo/`, el repo más chico que auditamos): README.md
+    (885) + DECISIONES.md (537) + prompts/system_prompt.md (194) +
+    prompts/user_prompt.md (118) + corridas/ completo (792) =
+    **2.526 caracteres**.
+  - **Máximo** (`tubidj10/FinalAgentesIA`, uno de los repos más completos
+    que auditamos): README.md (19.859) + DECISIONES.md (23.268) +
+    prompts/system_prompt.md (8.380) + prompts/user_prompt.md (1.468) +
+    corridas/ completo (16.044) = **69.019 caracteres**.
 - Con la heurística de ~4 caracteres/token (la misma que usan
   `casos/excelente/` y `FinalAgentesIA` cuando no hay tokenizer real
   disponible — declarada como aproximación, no como factura real):
-  entrada ≈ (38.903 + 69.019) / 4 ≈ **26.980 tokens**.
+  entrada ≈ (38.903 + [2.526 a 69.019]) / 4 ≈ **10.357 a 26.980 tokens**.
 - La salida (el JSON de evaluación con checklist completo por dimensión,
   como el de esta misma corrida) mide en la práctica ~12.000 caracteres
-  ≈ **3.000 tokens**.
+  ≈ **3.000 tokens** — la mantenemos constante en los dos extremos porque
+  el JSON de salida tiene una estructura fija (5 dimensiones con
+  checklist) que no depende mucho del tamaño del repo evaluado; no medimos
+  una corrida real contra el caso mínimo para confirmar si de verdad no
+  varía, así que esto es un supuesto declarado, no una medición doble.
 
 Precio de referencia (**verificar contra anthropic.com/pricing al momento
 de uso real, los precios cambian**), `claude-sonnet-5` — USD 3 / millón de
 tokens de entrada, USD 15 / millón de salida:
 
 ```
-(26.980 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0809 + 0.0450  ≈  USD 0.13 por corrida
+Mínimo:  (10.357 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0311 + 0.0450  ≈  USD 0.08 por corrida
+Máximo:  (26.980 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0809 + 0.0450  ≈  USD 0.13 por corrida
 ```
+
+**Rango declarado: USD 0.08–0.13 por corrida**, según el tamaño real del
+repo evaluado.
 
 **Proyección para la prueba de fuego:** no tenemos el número real de
 trabajos finales de la cursada — lo declaramos como supuesto explícito:
 asumimos **~30 trabajos finales** (grupos de hasta 6 integrantes, cursada
 de MBA) y un promedio de **2 corridas por trabajo** (la corrección inicial
 más una re-verificación tras feedback, como pasó en la práctica con
-`FinalAgentesIA`).
+`FinalAgentesIA`). Usamos el extremo **máximo** del rango (USD 0.13 por
+corrida) para no subestimar el costo total.
 
 | Escenario | Corridas | Costo total |
 |---|---:|---:|
