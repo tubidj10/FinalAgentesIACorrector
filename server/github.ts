@@ -60,13 +60,13 @@ const ALIASES_RUTAS: Record<string, string[]> = {
 
 const EXTENSIONES_CODIGO = new Set([
   ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rb", ".java", ".rs", ".sh",
-  ".lock", ".toml", ".yml", ".yaml", ".json", ".txt"
+  ".lock", ".toml", ".yml", ".yaml", ".json", ".txt", ".md"
 ]);
 
 const MANIFEST_NAMES = new Set([
   "requirements.txt", "requirements.lock", "pipfile", "pipfile.lock",
   "pyproject.toml", "package.json", "package-lock.json", "dockerfile",
-  ".env.example"
+  ".env.example", "costos.md", "riesgos.md", "arquitectura.md", "evidencias.md"
 ]);
 
 // In-memory cache for extracted repo data (TTL: 5 minutes)
