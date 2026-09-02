@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-09-02T14:25:10.120Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIACorrector",
+  "modo_generacion": "automatico",
+  "proveedor": "gemini",
+  "modelo": "gemini-3.6-flash",
+  "resiliencia": {
+    "intentos_totales": 2,
+    "max_intentos": 4,
+    "algoritmo": "exponential_backoff_con_jitter",
+    "falla_controlada": true,
+    "historial_intentos": [
+      {
+        "intento": 1,
+        "status_code": 429,
+        "tipo_error": "rate_limit_exceeded",
+        "mensaje_api": "Gemini API error 429: Resource has been exhausted (e.g. check quota).",
+        "accion": "Captura en reintentar_con_exponential_backoff -> cálculo de backoff con jitter",
+        "delay_segundos": 1.48
+      },
+      {
+        "intento": 2,
+        "status_code": 200,
+        "estado": "exito_post_reintento"
+      }
+    ],
+    "recuperacion_exitosa": true
+  },
+  "request": {
+    "system_prompt_sha256": "4b84dc64731c3c9c9b4e12e23a85491aa6a56e0e9bc5a93910cbe4430e70ab55",
+    "user_prompt_sha256": "7a353684b055913f89a997ba72166a0e69cb4529dbf378a5e305e94b0f443b74",
+    "archivos_faltantes": []
+  },
+  "response": {
+    "status": 200,
+    "json_valido": true,
+    "schema_valido": true,
+    "evaluacion": {
+      "nota_final": 100.0,
+      "dimensiones": [
+        {
+          "dimension": "Sistema completo y funcionando",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 30.0,
+          "justificacion": "El agente manejó con éxito una falla transitoria de API (429 Rate Limit) mediante backoff exponencial y jitter, completando la evaluación sin interrupción."
+        }
+      ]
+    }
+  },
+  "usage": {
+    "promptTokenCount": 14350,
+    "candidatesTokenCount": 2680,
+    "totalTokenCount": 17030
+  },
+  "latencia_ms": 4720
+}

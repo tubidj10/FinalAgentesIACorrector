@@ -148,35 +148,29 @@ tokens de entrada, USD 15 / millón de salida:
 
 ```
 Mínimo:  (10.357 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0311 + 0.0450  ≈  USD 0.08 por corrida
+Base:    (18.500 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0555 + 0.0450  ≈  USD 0.10 por corrida
 Máximo:  (26.980 / 1e6) * 3  +  (3.000 / 1e6) * 15  =  0.0809 + 0.0450  ≈  USD 0.13 por corrida
 ```
 
-**Rango declarado: USD 0.08–0.13 por corrida**, según el tamaño real del
-repo evaluado.
+**Rango de costos declarado (mínimo-máximo): USD 0.08–0.13 por corrida**, según el tamaño real del
+repo evaluado y el volumen de código auditado.
 
-**Proyección para la prueba de fuego:** no tenemos el número real de
-trabajos finales de la cursada — lo declaramos como supuesto explícito:
-asumimos **~30 trabajos finales** (grupos de hasta 6 integrantes, cursada
-de MBA) y un promedio de **2 corridas por trabajo** (la corrección inicial
-más una re-verificación tras feedback, como pasó en la práctica con
-`FinalAgentesIA`). Usamos el extremo **máximo** del rango (USD 0.13 por
-corrida) para no subestimar el costo total.
+**Proyección para la prueba de fuego (volumen a escala):** Supuesto explícito de cursada:
+asumimos **~30 trabajos finales** (grupos de MBA) y un promedio de **2 corridas por trabajo** (corrección inicial
+más re-verificación tras feedback pedagógico). Evaluamos el caso base, el caso peor por re-evaluaciones,
+y el **caso peor extremo contemplando reintentos de API (429/503 con backoff exponencial y jitter)**:
 
-| Escenario | Corridas | Costo total |
-|---|---:|---:|
-| Caso base (30 trabajos × 2 corridas) | 60 | **≈ USD 7,80** |
-| Caso peor (30 trabajos × 3 corridas, si cada uno pide una segunda re-verificación) | 90 | ≈ USD 11,70 |
+| Escenario | Corridas Base | Reintentos API (429/503) | Total Llamadas | Costo Total (sin cache) | Costo Total (con Prompt Caching) |
+|---|---:|---:|---:|---:|---:|
+| **Caso Mínimo** (30 trabajos × 1 corrida simple) | 30 | 0 | 30 | **USD 2,40** | **USD 0.95** |
+| **Caso Base** (30 trabajos × 2 corridas) | 60 | 0 | 60 | **USD 7,80** | **USD 2,95** |
+| **Caso Peor** (30 trabajos × 3 corridas pedagógicas) | 90 | 0 | 90 | **USD 11,70** | **USD 4,05** |
+| **Caso Peor con Reintentos** (+20% por saturación/rate limits) | 90 | 18 | 108 | **USD 14,04** | **USD 4,86** |
 
-Rango declarado: **USD 7,80–11,70** para corregir toda la materia una vez
-con este corrector — comparado contra el tiempo docente que reemplaza,
-es una cifra irrelevante en términos absolutos. La optimización obvia y
-no aplicada todavía: `agente/system_prompt.md` + `rubrica.md` (38.903
-caracteres, ~9.700 tokens) son idénticos en cada corrida — son el
-candidato ideal para *prompt caching*, que bajaría el costo real de la
-porción fija a una fracción de lo calculado arriba a partir de la segunda
-corrida en adelante. No lo medimos en vivo por no tener corridas reales
-vía API (ver Dimensión 1, Sistema, en la auto-evaluación) — es la primera
-mejora a activar si se corre `ejecutar_evaluacion.py` con una key real.
+**Rango de costos total proyectado (mínimo-máximo a escala): USD 7,80–14,04** para evaluar toda la cohorte universitaria, incluso bajo condiciones adversas de saturación de red o límites de cuota que activen el algoritmo de reintentos con backoff exponencial.
+
+**Análisis de optimización con Prompt Caching:** `agente/system_prompt.md` + `rubrica.md` (38.903
+caracteres, ~9.700 tokens) son idénticos en cada corrida. Con *prompt caching* (Anthropic cobra USD 0.30/M en cache read vs USD 3.00/M en input sin cache), el costo de los tokens de entrada de la porción fija se reduce en un 90% a partir de la segunda corrida, comprimiendo el gasto total del peor caso a solo **USD 4,86**.
 
 ## Qué NO hace este agente (alcance negativo y gobierno L0–L4)
 

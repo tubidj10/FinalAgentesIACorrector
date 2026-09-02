@@ -66,15 +66,33 @@ def validar_schema_pydantic(payload_json: dict) -> bool:
 def reintentar_con_exponential_backoff(func, *args, max_intentos=4, base_delay=1.0, max_delay=16.0, jitter=0.5, **kwargs):
     """Implementa Exponential Backoff con Jitter y límite estricto de reintentos ante 429/503."""
     ultimo_error = None
+    historial_intentos = []
     for intento in range(1, max_intentos + 1):
         try:
-            return func(*args, **kwargs)
+            res = func(*args, **kwargs)
+            if isinstance(res, dict):
+                res["resiliencia"] = {
+                    "intentos_totales": intento,
+                    "max_intentos": max_intentos,
+                    "algoritmo": "exponential_backoff_con_jitter",
+                    "falla_controlada": len(historial_intentos) > 0,
+                    "historial_intentos": historial_intentos,
+                    "recuperacion_exitosa": True
+                }
+            return res
         except Exception as e:
             ultimo_error = e
             msg = str(e).lower()
             es_rate_limit = ("429" in msg or "503" in msg or "rate" in msg or "quota" in msg or "overloaded" in msg or "resource_exhausted" in msg)
+            backoff = min(max_delay, (base_delay * (2 ** (intento - 1)))) + random.uniform(0, jitter)
+            historial_intentos.append({
+                "intento": intento,
+                "error": str(e),
+                "es_rate_limit": es_rate_limit,
+                "accion": f"Backoff exponencial con jitter ({backoff:.2f}s) y reintento",
+                "delay_segundos": round(backoff, 2)
+            })
             if intento < max_intentos and es_rate_limit:
-                backoff = min(max_delay, (base_delay * (2 ** (intento - 1)))) + random.uniform(0, jitter)
                 print(f"[REINTENTO {intento}/{max_intentos}] Capturado error de API/Rate Limit (429/503). Esperando {backoff:.2f}s con jitter...", file=sys.stderr)
                 time.sleep(backoff)
             else:
@@ -363,6 +381,7 @@ def main():
         "modo_generacion": "automatico",
         "proveedor": resultado["proveedor"],
         "modelo": resultado["modelo"],
+        "resiliencia": resultado.get("resiliencia", {}),
         "request": {
             "system_prompt_sha256": sha256_de(system_prompt_completo),
             "user_prompt_sha256": sha256_de(user_prompt),

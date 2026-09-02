@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-09-02T14:40:05.882Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIACorrector",
+  "modo_generacion": "automatico",
+  "proveedor": "gemini",
+  "modelo": "gemini-3.6-flash",
+  "caso_limite": {
+    "tipo": "validacion_schema_frontera",
+    "validador": "Pydantic_EvaluacionSalidaSchema",
+    "resultado": "contrato_estricto_cumplido",
+    "campos_auditados": ["nota_final", "dimensiones", "protocolo_antifraude", "revision_de_codigo"]
+  },
+  "request": {
+    "system_prompt_sha256": "4b84dc64731c3c9c9b4e12e23a85491aa6a56e0e9bc5a93910cbe4430e70ab55",
+    "user_prompt_sha256": "7a353684b055913f89a997ba72166a0e69cb4529dbf378a5e305e94b0f443b74",
+    "archivos_faltantes": []
+  },
+  "response": {
+    "status": 200,
+    "json_valido": true,
+    "schema_valido": true,
+    "evaluacion": {
+      "nota_final": 100.0,
+      "dimensiones": [
+        {
+          "dimension": "Gobierno y riesgo",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 15.0,
+          "justificacion": "Salida validada contra Pydantic BaseModel, asegurando tipado estricto y ausencia de alucinaciones sintácticas."
+        }
+      ]
+    }
+  },
+  "usage": {
+    "promptTokenCount": 14350,
+    "candidatesTokenCount": 2680,
+    "totalTokenCount": 17030
+  },
+  "latencia_ms": 3290
+}

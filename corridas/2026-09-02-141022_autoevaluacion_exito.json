@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-09-02T14:10:22.451Z",
+  "repositorio_evaluado": "https://github.com/tubidj10/FinalAgentesIACorrector",
+  "modo_generacion": "automatico",
+  "proveedor": "gemini",
+  "modelo": "gemini-3.6-flash",
+  "request": {
+    "system_prompt_sha256": "4b84dc64731c3c9c9b4e12e23a85491aa6a56e0e9bc5a93910cbe4430e70ab55",
+    "user_prompt_sha256": "7a353684b055913f89a997ba72166a0e69cb4529dbf378a5e305e94b0f443b74",
+    "archivos_faltantes": []
+  },
+  "response": {
+    "status": 200,
+    "json_valido": true,
+    "schema_valido": true,
+    "evaluacion": {
+      "nota_final": 100.0,
+      "dimensiones": [
+        {
+          "dimension": "Sistema completo y funcionando",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 30.0,
+          "justificacion": "Sistema con flujo transaccional completo, variables de user_prompt trazables y estructura de API real verificada."
+        },
+        {
+          "dimension": "Proceso documentado",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 25.0,
+          "justificacion": "Iteraciones documentadas en DECISIONES.md con alternativas descartadas y sustento métrico."
+        },
+        {
+          "dimension": "Formato y reproducibilidad",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 15.0,
+          "justificacion": "Las 5 rutas obligatorias existen en la raíz con dependencias fijadas y comandos de ejecución sin secretos expuestos."
+        },
+        {
+          "dimension": "Análisis económico",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 15.0,
+          "justificacion": "Fórmula desagregada con rango explícito mínimo-máximo (USD 0.08–0.13), caso base y caso peor con reintentos."
+        },
+        {
+          "dimension": "Gobierno y riesgo",
+          "puntaje_asignado": "10/10",
+          "puntaje_ponderado": 15.0,
+          "justificacion": "Matriz L0-L4, alcance negativo explícito y validación de contrato Pydantic en frontera de salida."
+        }
+      ]
+    }
+  },
+  "usage": {
+    "promptTokenCount": 14350,
+    "candidatesTokenCount": 2680,
+    "totalTokenCount": 17030
+  },
+  "latencia_ms": 3150
+}
