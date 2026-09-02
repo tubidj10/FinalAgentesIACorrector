@@ -529,6 +529,8 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
 
   const scenarioGroups = new Set<string>();
   for (const c of corridas) {
+    const lower = c.nombre.toLowerCase();
+    if (lower.endsWith('.md') || lower.includes('readme') || lower.endsWith('.gitkeep')) continue;
     scenarioGroups.add(getScenarioGroup(c.nombre));
   }
   const uniqueScenarioCount = scenarioGroups.size > 0 ? scenarioGroups.size : corridas.length;

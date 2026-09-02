@@ -190,14 +190,22 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const hasActiveContradiction = claimsMultiAgent && !hasMultiAgentCodeOrTraces && corridas.length > 0 && !corridas.some(c => c.contenido.includes('request') || c.contenido.includes('messages'));
 
   // 5. Dependency Pinning Inconsistency & Deprecated Model Detection
-  const reqTxt = data.archivos_codigo.find(c => c.ruta.toLowerCase().includes('requirements.txt'))?.contenido || '';
-  const reqLock = data.archivos_codigo.find(c => c.ruta.toLowerCase().includes('requirements.lock'))?.contenido || '';
   let dependencyInconsistency = '';
-  if (reqTxt && reqLock) {
-    const txtAnthropic = reqTxt.match(/anthropic==([0-9.]+)/i)?.[1];
-    const lockAnthropic = reqLock.match(/anthropic==([0-9.]+)/i)?.[1];
-    if (txtAnthropic && lockAnthropic && txtAnthropic !== lockAnthropic) {
-      dependencyInconsistency = `Discordancia de versión fijada: requirements.txt declara anthropic==${txtAnthropic} pero requirements.lock declara anthropic==${lockAnthropic}`;
+  const lockFiles = data.archivos_codigo.filter(c => c.ruta.toLowerCase().endsWith('requirements.lock'));
+  for (const lock of lockFiles) {
+    const lockDir = lock.ruta.substring(0, lock.ruta.lastIndexOf('/'));
+    const matchingTxt = data.archivos_codigo.find(c => {
+      const txtDir = c.ruta.substring(0, c.ruta.lastIndexOf('/'));
+      return c.ruta.toLowerCase().endsWith('requirements.txt') && txtDir === lockDir;
+    }) || data.archivos_codigo.find(c => c.ruta.toLowerCase().endsWith('requirements.txt'));
+
+    if (matchingTxt) {
+      const txtAnthropic = matchingTxt.contenido.match(/anthropic==([0-9.]+)/i)?.[1];
+      const lockAnthropic = lock.contenido.match(/anthropic==([0-9.]+)/i)?.[1];
+      if (txtAnthropic && lockAnthropic && txtAnthropic !== lockAnthropic) {
+        dependencyInconsistency = `Discordancia de versión fijada: ${matchingTxt.ruta} declara anthropic==${txtAnthropic} pero ${lock.ruta} declara anthropic==${lockAnthropic}`;
+        break;
+      }
     }
   }
 
@@ -208,11 +216,23 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     .join('\n');
   const allRepoCodeText = [userCodeTexts, readme, sysPrompt, userPrompt, decisiones].join('\n');
 
-  // gemini-3.6-flash quedó verificado como modelo real y vigente (probado con una llamada
-  // real a la API); no se marca como deprecado. Solo se flaggean nombres confirmados obsoletos.
-  const deprecatedModelMatch = allRepoCodeText.match(/(?:gemini-3-flash|gemini-2\.0-flash|gemini-1\.5-flash)/i);
-  const hasDeprecatedModelRef = Boolean(deprecatedModelMatch);
-  const deprecatedModelName = deprecatedModelMatch ? deprecatedModelMatch[0] : '';
+  // Solo se marca modelo obsoleto si está activamente configurado en el código fuente ejecutable
+  // y NO se trata de documentación histórica (DECISIONES.md) o comentarios de tropiezos.
+  const codeExecutableFiles = data.archivos_codigo.filter(c => 
+    c.ruta.endsWith('.py') || c.ruta.endsWith('.ts') || c.ruta.endsWith('.js')
+  );
+  const codeExecutableText = codeExecutableFiles.map(c => c.contenido).join('\n');
+  
+  const hasActiveConfiguredModel = (
+    /(?:model|model_name|default_model|gemini_model)\s*[:=]\s*["'](?:gemini-3\.6-flash|gemini-2\.5-flash|claude-3-5|gpt-4o)/i.test(codeExecutableText) ||
+    /gemini-3\.6-flash/i.test(codeExecutableText)
+  );
+
+  const deprecatedConfigMatch = codeExecutableText.match(/(?:model|model_name|default_model|gemini_model)\s*[:=]\s*["'](gemini-3-flash|gemini-2\.0-flash|gemini-1\.5-flash)["']/i);
+  
+  // Si el repo utiliza activamente gemini-3.6-flash, no se penaliza por menciones de modelos descartados
+  const hasDeprecatedModelRef = Boolean(deprecatedConfigMatch) && !hasActiveConfiguredModel;
+  const deprecatedModelName = deprecatedConfigMatch ? deprecatedConfigMatch[1] : '';
 
   const fraudTriggered = hasHtmlInjection || hasZeroWidthOrRtl || hasDelimiterTampering || hasImperativeOverride || hasActiveContradiction;
   const fraudReasons: string[] = [];
@@ -376,7 +396,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     puntaje_asignado: `${d1Score}/10`,
     puntaje_ponderado: d1Pond.toFixed(1),
     escala_elegida: d1Score === 10 ? "EXCELENTE (10/10)" : d1Score >= 9 ? "SOBRESALIENTE (9/10)" : d1Score >= 6 ? "MUY BUENO (7-8/10)" : "DEFICIENTE",
-    evidencia_citada: corridas.map(c => `corridas/${c.nombre}`).slice(0, 3).join(', ') || 'Sin corridas válidas',
+    evidencia_citada: corridas.map(c => c.nombre.startsWith('corridas/') ? c.nombre : `corridas/${c.nombre}`).slice(0, 3).join(', ') || 'Sin corridas válidas',
     sugerencia_concreta: d1Score === 10 
       ? "Nivel máximo alcanzado (10/10): Todos los ítems de API real, trazabilidad, fallas manejadas y resiliencia verificados."
       : "Para subir a 10/10: Implementar en el código del runner un reintento con Exponential Backoff y Jitter ante 429/503 y un guard de límite de iteraciones/tokens máximos.",
@@ -541,8 +561,12 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
       : "5 rutas obligatorias presentes en la raíz, dependencias fijadas y script reproducible",
     sugerencia_concreta: d3Score === 10
       ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas y coherentes."
-      : (dependencyInconsistency || hasDeprecatedModelRef)
-      ? "Para subir a 10/10: Sincronizar las versiones fijadas en requirements.txt y requirements.lock (ej: anthropic), y reemplazar modelos obsoletos por versiones vigentes (ej: gemini-3.6-flash, verificado real con una llamada a la API en esta rúbrica)."
+      : (dependencyInconsistency && hasDeprecatedModelRef)
+      ? `Para subir a 10/10: Sincronizar las dependencias fijadas (${dependencyInconsistency}) y reemplazar modelo obsoleto '${deprecatedModelName}' por una versión vigente (ej: gemini-3.6-flash).`
+      : dependencyInconsistency
+      ? `Para subir a 10/10: Sincronizar las versiones fijadas en los archivos de dependencias (${dependencyInconsistency}).`
+      : hasDeprecatedModelRef
+      ? `Para subir a 10/10: Reemplazar el modelo obsoleto '${deprecatedModelName}' configurado en el código por una versión vigente (ej: gemini-3.6-flash, verificado real con una llamada a la API en esta rúbrica).`
       : "Para subir a 10/10: Fijar dependencias exactas con '==' en requirements.txt y documentar un comando único de ejecución sin pasos manuales externos.",
     justificacion: d3Score === 1
       ? `Penalización automática de 1/10 por falta de rutas obligatorias en la raíz: ${missingFiles.join(', ')}. Para subir un nivel: Asegurar que existan README.md, prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md en la raíz.`

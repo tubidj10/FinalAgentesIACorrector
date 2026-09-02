@@ -502,15 +502,26 @@ export async function extractRepoContents(
         return false;
       }
 
-      // Extensiones de evidencia válidas
-      const validExt = lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.md');
-      if (!validExt) return false;
-
-      // Descartar archivos raíz que corresponden a documentación principal
-      if (lower === 'readme.md' || lower === 'decisiones.md') return false;
-
       const segments = lower.split('/');
       const fileName = segments[segments.length - 1];
+
+      // Descartar archivos que corresponden a documentación o gitkeep (no son corridas)
+      if (
+        fileName.startsWith('readme') ||
+        fileName.startsWith('instrucciones') ||
+        fileName.startsWith('license') ||
+        fileName.startsWith('.git') ||
+        fileName === 'index.md'
+      ) {
+        return false;
+      }
+
+      // Extensiones de evidencia válidas: json, txt, log
+      const validExt = lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.ndjson');
+      if (!validExt) return false;
+
+      // Descartar archivos raíz que corresponden a documentación principal o manifests
+      if (lower === 'readme.md' || lower === 'decisiones.md' || lower === 'costos.md' || lower === 'requirements.txt') return false;
 
       // 1. Está dentro de una carpeta cuyo nombre es o contiene "corridas", "runs", "logs", "ejecuciones", "traces", etc.
       const dirSegments = segments.slice(0, -1);
@@ -539,28 +550,48 @@ export async function extractRepoContents(
     };
 
     const corridaBlobPaths = treeBlobs.filter(isCorridaBlob).slice(0, 25);
+    const corridaBlobPathsSet = new Set(corridaBlobPaths.map(p => p.toLowerCase()));
 
     // C. Find Code & Manifest Files (e.g. agente/*.py, *.py, *.sh, *.ts, requirements.txt, requirements.lock)
+    // EXCLUIR terminantemente archivos de corridas y carpetas de corridas para no desplazar el código fuente real
     const codeBlobPaths = treeBlobs.filter(p => {
       const lower = p.toLowerCase();
       if (lower.startsWith('.') || lower.includes('node_modules') || lower.includes('.venv') || lower.includes('venv') || lower.includes('__pycache__') || lower.includes('dist/')) return false;
+      
+      // Excluir si ya es una corrida o está dentro del directorio corridas/
+      if (corridaBlobPathsSet.has(lower)) return false;
+      const segments = lower.split('/');
+      const dirSegments = segments.slice(0, -1);
+      if (dirSegments.some(seg => seg === 'corridas' || seg.includes('corrida') || seg === 'traces' || seg === 'ejecuciones')) {
+        return false;
+      }
+
       const baseName = lower.split('/').pop() || '';
       const ext = '.' + p.split('.').pop();
       return (EXTENSIONES_CODIGO.has(ext) || MANIFEST_NAMES.has(baseName)) && !RUTAS_OBLIGATORIAS.includes(p);
     }).sort((a, b) => {
       const baseA = a.toLowerCase().split('/').pop() || '';
       const baseB = b.toLowerCase().split('/').pop() || '';
-      // Prioridad 1: archivos citados por nombre en README/DECISIONES (evita falsos
-      // positivos de "archivo referenciado pero no entregado" en la Fase 0).
+      const extA = '.' + a.split('.').pop();
+      const extB = '.' + b.split('.').pop();
+
+      // Prioridad 0: Código ejecutable real (.py, .ts, .js, .sh)
+      const isExecA = ['.py', '.ts', '.js', '.sh'].includes(extA);
+      const isExecB = ['.py', '.ts', '.js', '.sh'].includes(extB);
+      if (isExecA && !isExecB) return -1;
+      if (!isExecA && isExecB) return 1;
+
+      // Prioridad 1: archivos citados por nombre en README/DECISIONES
       const refA = referencedFilenames.has(baseA);
       const refB = referencedFilenames.has(baseB);
       if (refA && !refB) return -1;
       if (refB && !refA) return 1;
+
       // Prioridad 2: manifests (requirements.txt, package.json, etc.)
-      if (MANIFEST_NAMES.has(baseA)) return -1;
-      if (MANIFEST_NAMES.has(baseB)) return 1;
+      if (MANIFEST_NAMES.has(baseA) && !MANIFEST_NAMES.has(baseB)) return -1;
+      if (!MANIFEST_NAMES.has(baseA) && MANIFEST_NAMES.has(baseB)) return 1;
       return 0;
-    }).slice(0, 20);
+    }).slice(0, 25);
 
     // Concurrently download all resolved files
     const [fetchedObligatory, fetchedCorridas, fetchedCode] = await Promise.all([
@@ -570,7 +601,9 @@ export async function extractRepoContents(
       })),
       Promise.all(corridaBlobPaths.map(async (path) => {
         const content = await fetchGitHubFile(owner, repo, path, githubToken);
-        return { nombre: path, contenido: content };
+        // Normalizar nombre para que no tenga prefijo redundante
+        const cleanNombre = path.startsWith('corridas/') ? path.slice('corridas/'.length) : path;
+        return { nombre: cleanNombre, contenido: content };
       })),
       Promise.all(codeBlobPaths.map(async (path) => {
         const content = await fetchGitHubFile(owner, repo, path, githubToken);
