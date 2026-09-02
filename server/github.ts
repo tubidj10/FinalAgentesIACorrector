@@ -575,21 +575,25 @@ export async function extractRepoContents(
       const extA = '.' + a.split('.').pop();
       const extB = '.' + b.split('.').pop();
 
-      // Prioridad 0: Código ejecutable real (.py, .ts, .js, .sh)
-      const isExecA = ['.py', '.ts', '.js', '.sh'].includes(extA);
-      const isExecB = ['.py', '.ts', '.js', '.sh'].includes(extB);
-      if (isExecA && !isExecB) return -1;
-      if (!isExecA && isExecB) return 1;
-
-      // Prioridad 1: archivos citados por nombre en README/DECISIONES
+      // Prioridad 1: archivos citados explícitamente en README/DECISIONES (ej. COSTOS.md, prompts extra)
+      // Esto previene que un archivo referenciado legítimo quede afuera del barrido y genere falsos negativos.
       const refA = referencedFilenames.has(baseA);
       const refB = referencedFilenames.has(baseB);
       if (refA && !refB) return -1;
       if (refB && !refA) return 1;
 
-      // Prioridad 2: manifests (requirements.txt, package.json, etc.)
-      if (MANIFEST_NAMES.has(baseA) && !MANIFEST_NAMES.has(baseB)) return -1;
-      if (!MANIFEST_NAMES.has(baseA) && MANIFEST_NAMES.has(baseB)) return 1;
+      // Prioridad 2: manifests y configs (requirements.txt, requirements.lock, package.json, costos.md)
+      const isManifestA = MANIFEST_NAMES.has(baseA);
+      const isManifestB = MANIFEST_NAMES.has(baseB);
+      if (isManifestA && !isManifestB) return -1;
+      if (!isManifestA && isManifestB) return 1;
+
+      // Prioridad 3: Código ejecutable real (.py, .ts, .js, .sh)
+      const isExecA = ['.py', '.ts', '.js', '.sh'].includes(extA);
+      const isExecB = ['.py', '.ts', '.js', '.sh'].includes(extB);
+      if (isExecA && !isExecB) return -1;
+      if (!isExecA && isExecB) return 1;
+
       return 0;
     }).slice(0, 25);
 
@@ -633,9 +637,13 @@ export async function extractRepoContents(
     let charsCode = 0;
     for (const c of fetchedCode) {
       if (c.contenido !== null) {
-        charsCode += c.contenido.length;
-        archivos_codigo.push({ ruta: c.ruta, contenido: c.contenido });
-        if (charsCode >= 45000) break;
+        // Truncar archivos individuales excesivamente grandes (> 25000 chars) para no desplazar archivos subsiguientes
+        const safeContent = c.contenido.length > 25000 
+          ? c.contenido.slice(0, 25000) + '\n... [TRUNCADO DEFENSIVO POR TAMAÑO]' 
+          : c.contenido;
+        charsCode += safeContent.length;
+        archivos_codigo.push({ ruta: c.ruta, contenido: safeContent });
+        if (charsCode >= 90000) break;
       }
     }
   } else {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
   Sparkles, 
@@ -13,7 +13,11 @@ import {
   Check, 
   RefreshCw,
   Search,
-  Code2
+  Code2,
+  ChevronDown,
+  X,
+  Plus,
+  ExternalLink
 } from 'lucide-react';
 import { ScoreCard } from './ScoreCard';
 import { DimensionCard } from './DimensionCard';
@@ -29,14 +33,100 @@ interface LiveEvaluatorProps {
   initialRepoUrl?: string;
 }
 
+export interface RepoOption {
+  id: string;
+  category: 'Repositorio Trabajo Final' | 'Casos de Calibración & Benchmarks' | 'Repositorios Externos';
+  label: string;
+  url: string;
+  badge?: string;
+  scoreHint?: string;
+  desc: string;
+}
+
+export const CHECKABLE_REPOS: RepoOption[] = [
+  {
+    id: 'finalagentesia',
+    category: 'Repositorio Trabajo Final',
+    label: 'tubidj10/FinalAgentesIA',
+    url: 'https://github.com/tubidj10/FinalAgentesIA',
+    badge: 'Trabajo Principal',
+    scoreHint: '100 pts',
+    desc: 'Agente de triage SRE con fallback, backoff exponencial, COSTOS.md y 3 corridas auditadas.'
+  },
+  {
+    id: 'corrector',
+    category: 'Repositorio Trabajo Final',
+    label: 'tubidj10/FinalAgentesIACorrector',
+    url: 'https://github.com/tubidj10/FinalAgentesIACorrector',
+    badge: 'Auto-Evaluación',
+    scoreHint: '100 pts',
+    desc: 'Auditoría sobre este mismo agente corrector (Fase 0, antifraude, gobernanza L0-L4).'
+  },
+  {
+    id: 'excelente',
+    category: 'Casos de Calibración & Benchmarks',
+    label: 'Caso Calibración: Excelente',
+    url: 'excelente',
+    badge: 'Benchmark',
+    scoreHint: '92.5 pts',
+    desc: 'Pydantic estricto, rate limit 429 con retry, L1 y costos desagregados.'
+  },
+  {
+    id: 'flojo',
+    category: 'Casos de Calibración & Benchmarks',
+    label: 'Caso Calibración: Flojo',
+    url: 'flojo',
+    badge: 'Benchmark',
+    scoreHint: '36.5 pts',
+    desc: 'Variable fantasma, sin retry de errores, costo vago sin fórmulas.'
+  },
+  {
+    id: 'tramposo',
+    category: 'Casos de Calibración & Benchmarks',
+    label: 'Caso Calibración: Tramposo',
+    url: 'tramposo',
+    badge: 'Antifraude',
+    scoreHint: '10.0 pts',
+    desc: 'Prompt injection en HTML, RTL homoglyphs, intento de manipulación de rúbrica.'
+  },
+  {
+    id: 'facultad',
+    category: 'Repositorios Externos',
+    label: 'tubidj10/Facultad',
+    url: 'https://github.com/tubidj10/Facultad',
+    badge: 'Externo',
+    scoreHint: '14.5 pts',
+    desc: 'Repositorio externo genuino sin las 5 rutas de la cátedra.'
+  }
+];
+
 export const LiveEvaluator: React.FC<LiveEvaluatorProps> = ({ initialRepoUrl }) => {
   const { user } = useAuth();
-  const [repoUrl, setRepoUrl] = useState(initialRepoUrl || 'https://github.com/casos-prueba/triage-excelente');
+  const [repoUrl, setRepoUrl] = useState(initialRepoUrl || 'https://github.com/tubidj10/FinalAgentesIA');
   const [githubToken, setGithubToken] = useState('');
   const [provider, setProvider] = useState<'auto' | 'gemini' | 'anthropic'>('auto');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [isComboOpen, setIsComboOpen] = useState(false);
+  const comboboxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialRepoUrl) {
+      setRepoUrl(initialRepoUrl);
+    }
+  }, [initialRepoUrl]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (comboboxRef.current && !comboboxRef.current.contains(event.target as Node)) {
+        setIsComboOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [evaluationResult, setEvaluationResult] = useState<{
     nota_final: number;
@@ -53,14 +143,7 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = ({ initialRepoUrl }) 
   const [activeTabSub, setActiveTabSub] = useState<'feedback' | 'forense' | 'dimensiones' | 'fase0' | 'codigo' | 'log'>('feedback');
   const [copiedLog, setCopiedLog] = useState(false);
 
-  const presets = [
-    { id: 'excelente', label: 'Caso Excelente (92.5)', url: 'excelente', desc: 'Pydantic, rate limit 429 con retry, L1 y costos.' },
-    { id: 'flojo', label: 'Caso Flojo (36.5)', url: 'flojo', desc: 'Variable fantasma, sin retry de errores, costo vago.' },
-    { id: 'tramposo', label: 'Caso Tramposo (10.0)', url: 'tramposo', desc: 'Prompt injection en HTML, RTL homoglyphs, fraude.' },
-    { id: 'facultad', label: 'tubidj10/Facultad (14.5)', url: 'https://github.com/tubidj10/Facultad', desc: 'Repo externo genuino sin las 5 rutas.' },
-    { id: 'finalagentesia', label: 'tubidj10/FinalAgentesIA (92.5)', url: 'https://github.com/tubidj10/FinalAgentesIA', desc: 'Trabajo final MBA iterado v1 a v5.' },
-    { id: 'autoevaluacion', label: 'Auto-Evaluación Corrector (85.0)', url: 'https://github.com/tubidj10/FinalAgentesIACorrector', desc: 'Auditoría sobre este mismo repo.' }
-  ];
+  const presets = CHECKABLE_REPOS;
 
   const handleEvaluate = async (targetUrl?: string, forceRefresh = false) => {
     const url = targetUrl || repoUrl;
@@ -185,59 +268,143 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = ({ initialRepoUrl }) 
         </div>
       </div>
 
-      {/* Quick Presets Selection */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Casos de Prueba & Repositorios de Calibración
-          </label>
-          <span className="text-xs text-slate-500">Seleccioná un caso para evaluar al instante</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {presets.map((p) => {
-            const isSelected = repoUrl === p.url || repoUrl.includes(p.id);
-            return (
-              <button
-                key={p.id}
-                id={`preset-btn-${p.id}`}
-                onClick={() => {
-                  setRepoUrl(p.url);
-                  handleEvaluate(p.url);
-                }}
-                className={`p-3 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between ${
-                  isSelected
-                    ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-600/10'
-                    : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-xs">{p.label}</div>
-                  <div className="text-[11px] text-slate-400 line-clamp-2 mt-1">{p.desc}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Input Form */}
       <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 shadow-xl space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-8">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-              URL del Repositorio de GitHub
-            </label>
+          <div className="lg:col-span-8 relative" ref={comboboxRef}>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="input-repo-url" className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                URL del Repositorio de GitHub
+              </label>
+              <span className="text-[11px] text-slate-400">
+                Elegí una URL del combo o escribí una nueva
+              </span>
+            </div>
+
             <div className="relative">
-              <Github className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Github className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 id="input-repo-url"
                 value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-                placeholder="https://github.com/usuario/mi-agente-final"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                onChange={(e) => {
+                  setRepoUrl(e.target.value);
+                  setIsComboOpen(true);
+                }}
+                onFocus={() => setIsComboOpen(true)}
+                placeholder="https://github.com/usuario/mi-agente-final o seleccioná una URL..."
+                className="w-full pl-10 pr-20 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
               />
+
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                {repoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRepoUrl('');
+                      setIsComboOpen(true);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+                    title="Limpiar campo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  id="btn-toggle-repo-dropdown"
+                  onClick={() => setIsComboOpen(!isComboOpen)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800/80 transition"
+                  title="Desplegar URLs disponibles"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isComboOpen ? 'rotate-180 text-indigo-400' : ''}`} />
+                </button>
+              </div>
             </div>
+
+            {/* Menú Desplegable con todas las URLs posibles */}
+            {isComboOpen && (
+              <div 
+                id="repo-dropdown-menu"
+                className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto divide-y divide-slate-800/80"
+              >
+                {/* Opción para escribir una nueva si hay texto personalizado */}
+                {repoUrl.trim() && !presets.some(p => p.url.toLowerCase() === repoUrl.trim().toLowerCase()) && (
+                  <div 
+                    onClick={() => setIsComboOpen(false)}
+                    className="p-2.5 bg-indigo-950/30 hover:bg-indigo-900/40 cursor-pointer flex items-center justify-between text-xs text-indigo-200 transition"
+                  >
+                    <div className="flex items-center space-x-2 truncate">
+                      <Plus className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="font-medium truncate">Usar nueva URL personalizada:</span>
+                      <span className="font-mono text-white truncate">{repoUrl}</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-indigo-600/30 text-[10px] text-indigo-300 font-semibold uppercase">
+                      Personalizada
+                    </span>
+                  </div>
+                )}
+
+                {/* Categorías y Opciones */}
+                {(['Repositorio Trabajo Final', 'Casos de Calibración & Benchmarks', 'Repositorios Externos'] as const).map((category) => {
+                  const categoryRepos = presets.filter(p => p.category === category);
+                  if (categoryRepos.length === 0) return null;
+
+                  return (
+                    <div key={category} className="p-1.5">
+                      <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        {category}
+                      </div>
+                      <div className="space-y-0.5 mt-0.5">
+                        {categoryRepos.map((item) => {
+                          const isSelected = repoUrl.trim().toLowerCase() === item.url.toLowerCase();
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setRepoUrl(item.url);
+                                setIsComboOpen(false);
+                              }}
+                              className={`w-full text-left p-2.5 rounded-lg text-xs transition-all flex items-start justify-between gap-3 ${
+                                isSelected 
+                                  ? 'bg-indigo-600/20 text-white border border-indigo-500/40' 
+                                  : 'hover:bg-slate-800/90 text-slate-300'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-bold text-slate-100">{item.label}</span>
+                                  {item.badge && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                  {item.scoreHint && (
+                                    <span className="text-[10px] font-mono text-indigo-400">
+                                      {item.scoreHint}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] font-mono text-slate-400 truncate mt-0.5">
+                                  {item.url}
+                                </div>
+                                <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                                  {item.desc}
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <Check className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-4">
