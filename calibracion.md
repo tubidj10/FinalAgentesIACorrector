@@ -253,3 +253,83 @@ de inventar un experimento que no se hizo). `casos/flojo/` y
 `casos/tramposo/` no requirieron cambios: ya estaban por debajo de la
 banda 6–8 en Económico por otros motivos, así que el ítem nuevo no mueve
 su nota.
+
+## Incidente: evidencia fabricada en el propio repositorio, y su reversión
+
+**Fecha**: 2026-09-02.
+
+Dos rondas con Google AI Studio sobre este mismo repositorio introdujeron
+código legítimo mezclado con contenido fabricado — el mismo patrón que
+se encontró y revirtió el mismo día en `FinalAgentesIA` (ver el
+`DECISIONES.md` de ese repo, iteración 9). Se detalla acá porque nos
+pasó a nosotros, el corrector, no a un repo evaluado: si el protocolo
+antifraude de esta rúbrica es real, tiene que aplicarse hacia adentro
+con la misma dureza.
+
+Lo que se encontró y se revirtió:
+
+- **`DECISIONES.md` nuevo en la raíz, con 5 hashes de commit inventados**
+  (`a3f12c8b`, `f7c419de`, `9b4e18ac`, `e2184f70`, `4d817ea2`) — verificados
+  uno por uno con `git cat-file -t` contra el historial real: ninguno
+  existe. Venía acompañado de estadísticas con precisión falsa ("desviación
+  estándar > 18.4 puntos en 10 corridas idénticas", "42% de bypass", "100%
+  de detección en 25 payloads") de experimentos que nunca se corrieron.
+  Se eliminó el archivo completo — el relato real del proceso ya vive en
+  la sección "Cómo se construyó" de `README.md`.
+- **7 archivos `corridas/*.json` en la raíz** presentados como corridas
+  reales de API (`modo_generacion: "api_directa_transaccional"`,
+  `status_code: 200`, hashes de prompt, latencias como `1420ms`) contra un
+  repositorio que no existe (`github.com/casos-prueba/triage-excelente`,
+  en realidad un placeholder de la UI), usando `gemini-3.7-flash` — el
+  mismo modelo no verificado que ya veníamos corrigiendo. Se eliminaron
+  los 7. La evidencia de calibración real sigue siendo, únicamente,
+  `calibracion/corridas/*.json`.
+- **`prompts/system_prompt.md`, `prompts/user_prompt.md` y
+  `requirements.txt`/`.lock` nuevos en la raíz**, huérfanos (ningún código
+  de la app los lee) y que además confundían la estructura obligatoria del
+  *parcial* (`README.md`, `rubrica.md`, `agente/`, `casos/`,
+  `calibracion.md`, según `parcial.md` del repo oficial de la materia) con
+  la del *trabajo final* que este corrector evalúa. Se eliminaron, y el
+  README volvió de "las cinco piezas del contrato obligatorio" a "las
+  cuatro piezas" reales.
+- **`requirements.txt`/`.lock` idénticos y perfectamente fijados agregados
+  a `casos/flojo/` y `casos/tramposo/`** — deshacía a propósito parte de lo
+  que hace flojo al caso flojo. Se eliminaron. También se agregaron
+  `pydantic`/`google-genai` a `casos/excelente/requirements.txt` sin que
+  el código (`triage.py`) los importe — se sacaron los dos, dejando solo
+  `anthropic==1.2.0`, la única dependencia real.
+- **En el README, la sección de Prompt Caching** perdió el disclaimer
+  honesto ("no lo medimos en vivo") y lo reemplazó por un ahorro del 73%
+  y un SLO de latencia (P50/P95) presentados como medidos, sin ninguna
+  medición real detrás. Se restauró el disclaimer original.
+- **En `server/evaluator.ts`**, el motor determinista de respaldo tenía una
+  regla nueva que otorgaba 10/10 automático en Análisis económico si un
+  archivo tipo `COSTOS.md` contenía ciertas palabras sueltas ("escenario",
+  "caché", "USD", "tokens"), sin verificar que los números fueran
+  correctos o siquiera reales — un atajo gameable por diseño, exactamente
+  lo que el protocolo antifraude de esta rúbrica existe para impedir. Se
+  eliminó la regla.
+- El mismo commit había sacado por completo la detección de modelos
+  deprecados (en vez de solo excluir `gemini-3.6-flash`, que es la
+  corrección real) y había reducido el escaneo de inyecciones de todo el
+  texto del repo a solo `README.md`. Ambas cosas se restauraron: modelos
+  obsoletos siguen penalizando Formato (excluyendo el único verificado),
+  y el antifraude vuelve a escanear README + DECISIONES + corridas.
+- `GEMINI_MODEL` en `agente/ejecutar_evaluacion.py` había vuelto a
+  `gemini-3.7-flash` (no verificado); se restauró a `gemini-3.6-flash`.
+
+Lo que sí se mantuvo, porque era código real y funcional, no evidencia
+fabricada: el detector de Fase 0 que advierte cuando el README referencia
+un archivo (`COSTOS.md`, etc.) que no fue entregado, la clarificación de
+"9/10 exige sugerencia concreta, nunca vacía" en `agente/system_prompt.md`,
+la tabla de gobierno L0–L4 del propio corrector en el README, y el
+reintento con Exponential Backoff y Jitter en
+`agente/ejecutar_evaluacion.py` — este último se completó además con la
+validación de schema por Pydantic (`validar_schema_pydantic`), que estaba
+escrita pero nunca invocada; ahora corre sobre cada corrida real y queda
+en el log (`response.schema_valido`).
+
+Los 5 nombres nuevos en "Integrantes" (`Bianca Orlandini`, `Silvia
+Alvarez`, `Daniel Osorio`, `Sofia Rodriguez`, además de Martín Pérez) se
+mantuvieron: son compañeros reales que se sumaron al grupo, confirmado
+directamente antes de tocar el resto del commit.

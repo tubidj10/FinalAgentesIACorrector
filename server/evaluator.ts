@@ -130,13 +130,14 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
   const allTexts = [readme, sysPrompt, userPrompt, decisiones, ...corridas.map(c => c.contenido)].join('\n');
   
   // 1. Prompt Injection / Jailbreak detection
-  // Targeted specifically on README and active payload vectors to avoid false positives on security documentation / test fixtures
-  const hasHtmlInjection = /<!--[\s\S]*?(?:ignora|ignore|system|evaluador|evaluadora|asignar|asigna|10\/10|100\/100|calificaci|override|bypass)[\s\S]*?-->/i.test(readme);
-  const hasDelimiterTampering = /<\/(?:archivo|directorio|user_prompt|system_prompt|user_data)>/i.test(readme);
+  // Escaneado sobre allTexts (README + system/user prompt + DECISIONES + corridas), no
+  // solo README: una inyección escondida en DECISIONES.md o en corridas/ es igual de real.
+  const hasHtmlInjection = /<!--[\s\S]*?(?:ignora|ignore|system|evaluador|evaluadora|asignar|asigna|10\/10|100\/100|calificaci|override|bypass)[\s\S]*?-->/i.test(allTexts);
+  const hasDelimiterTampering = /<\/(?:archivo|directorio|user_prompt|system_prompt|user_data)>/i.test(allTexts);
   const hasImperativeOverride = (
-    /(?:asigna|poner|forzar)\s+(?:nota\s+)?(?:10|100|sobresaliente)|(?:ignora|desestima)\s+(?:las?\s+instrucciones|la\s+r[uú]brica)/i.test(readme)
+    /(?:asigna|poner|forzar)\s+(?:nota\s+)?(?:10|100|sobresaliente)|(?:ignora|desestima)\s+(?:las?\s+instrucciones|la\s+r[uú]brica)/i.test(allTexts)
   ) || (
-    /(?:system\s*:\s*ignora|ignore\s+all\s+previous|disregard\s+rubric|force\s+grade\s+100)/i.test(readme)
+    /(?:system\s*:\s*ignora|ignore\s+all\s+previous|disregard\s+rubric|force\s+grade\s+100)/i.test(allTexts)
   );
   
   // 2. Unicode obfuscation (Zero-width, BOM, BiDi Overrides)
@@ -177,6 +178,12 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     .map(c => `${c.ruta}\n${c.contenido}`)
     .join('\n');
   const allRepoCodeText = [userCodeTexts, readme, sysPrompt, userPrompt, decisiones].join('\n');
+
+  // gemini-3.6-flash quedó verificado como modelo real y vigente (probado con una llamada
+  // real a la API); no se marca como deprecado. Solo se flaggean nombres confirmados obsoletos.
+  const deprecatedModelMatch = allRepoCodeText.match(/(?:gemini-3-flash|gemini-2\.0-flash|gemini-1\.5-flash)/i);
+  const hasDeprecatedModelRef = Boolean(deprecatedModelMatch);
+  const deprecatedModelName = deprecatedModelMatch ? deprecatedModelMatch[0] : '';
 
   const fraudTriggered = hasHtmlInjection || hasZeroWidthOrRtl || hasDelimiterTampering || hasImperativeOverride || hasActiveContradiction;
   const fraudReasons: string[] = [];
@@ -445,7 +452,7 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     const hasExactDeps = /==/.test(repoAllContent) || /"dependencies"/.test(repoAllContent) || data.archivos_codigo.some(c => c.ruta.includes('requirements.txt'));
     const hasSingleStepScript = /correr|run|ejecutar|npm start|python3|\.sh\b/i.test(readme) || data.archivos_codigo.some(c => c.ruta.endsWith('.sh'));
 
-    if (hasExactDeps && hasSingleStepScript && !dependencyInconsistency) {
+    if (hasExactDeps && hasSingleStepScript && !dependencyInconsistency && !hasDeprecatedModelRef) {
       d3Score = 10;
       d3Checklist = [
         { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias verificadas." },
@@ -453,18 +460,23 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
         { item: "Ejecución documentada con comando exacto", cumple: true, evidencia: "Comando de ejecución detallado en README.md." },
         { item: "Variables de entorno nombradas por su nombre exacto", cumple: true, evidencia: "Variables declaradas sin secretos en texto plano." },
         { item: "Sin rutas absolutas dependientes de una máquina", cumple: true, evidencia: "Rutas relativas verificadas." },
-        { item: "Dependencias con versión exactamente fijada (==)", cumple: true, evidencia: "Versiones fijadas con precisión en requirements.txt / package.json." },
+        { item: "Dependencias con versión exactamente fijada y coherente", cumple: true, evidencia: "Versiones fijadas con precisión sin discordancias en lockfiles." },
+        { item: "Modelos LLM declarados son válidos y vigentes", cumple: true, evidencia: "Modelos activos sin referencias obsoletas." },
         { item: "Mecanismo de reproducción de un solo paso", cumple: true, evidencia: "Flujo automatizado reproducible con script de ejecución." }
       ];
-    } else if (hasExactDeps && hasSingleStepScript && dependencyInconsistency) {
+    } else if (hasExactDeps && hasSingleStepScript && (dependencyInconsistency || hasDeprecatedModelRef)) {
       d3Score = 8;
+      const issues: string[] = [];
+      if (dependencyInconsistency) issues.push(dependencyInconsistency);
+      if (hasDeprecatedModelRef) issues.push(`Referencia a modelo no vigente o deprecado: '${deprecatedModelName}' en código/config`);
+
       d3Checklist = [
         { item: "Las 5 rutas obligatorias existen en la raíz", cumple: true, evidencia: "5 rutas obligatorias presentes." },
         { item: "Instalación documentada", cumple: true, evidencia: "Comandos de instalación claros." },
         { item: "Ejecución documentada", cumple: true, evidencia: "Script ejecutable presente." },
         { item: "Variables de entorno nombradas", cumple: true, evidencia: "Nombres de variables expuestos correctamente." },
         { item: "Sin rutas absolutas locales", cumple: true, evidencia: "Rutas relativas verificadas." },
-        { item: "Dependencias con versión coherente", cumple: false, evidencia: dependencyInconsistency },
+        { item: "Dependencias con versión coherente y modelos vigentes", cumple: false, evidencia: issues.join(' | ') },
         { item: "Mecanismo de reproducción de un solo paso", cumple: true, evidencia: "Reproducible en un solo paso." }
       ];
     } else {
@@ -490,18 +502,18 @@ export function evaluateDeterministically(data: ExtractedRepoData): any {
     puntaje_asignado: `${d3Score}/10`,
     puntaje_ponderado: d3Pond.toFixed(1),
     escala_elegida: d3Score === 10 ? "EXCELENTE (10/10)" : d3Score >= 8 ? "SOBRESALIENTE (8/10)" : d3Score >= 7 ? "MUY BUENO (7/10)" : "DEFICIENTE",
-    evidencia_citada: dependencyInconsistency 
-      ? `Alerta: ${dependencyInconsistency}` 
+    evidencia_citada: (dependencyInconsistency || hasDeprecatedModelRef)
+      ? `Alerta: ${[dependencyInconsistency, hasDeprecatedModelRef ? `Modelo no vigente '${deprecatedModelName}'` : ''].filter(Boolean).join('; ')}`
       : "5 rutas obligatorias presentes en la raíz, dependencias fijadas y script reproducible",
     sugerencia_concreta: d3Score === 10
       ? "Nivel máximo alcanzado (10/10): 5 rutas presentes, reproducibilidad en un solo paso y dependencias fijadas y coherentes."
-      : dependencyInconsistency
-      ? "Para subir a 10/10: Sincronizar las versiones fijadas en requirements.txt y requirements.lock (ej: anthropic)."
+      : (dependencyInconsistency || hasDeprecatedModelRef)
+      ? "Para subir a 10/10: Sincronizar las versiones fijadas en requirements.txt y requirements.lock (ej: anthropic), y reemplazar modelos obsoletos por versiones vigentes (ej: gemini-3.6-flash, verificado real con una llamada a la API en esta rúbrica)."
       : "Para subir a 10/10: Fijar dependencias exactas con '==' en requirements.txt y documentar un comando único de ejecución sin pasos manuales externos.",
     justificacion: d3Score === 1
       ? `Penalización automática de 1/10 por falta de rutas obligatorias en la raíz: ${missingFiles.join(', ')}. Para subir un nivel: Asegurar que existan README.md, prompts/system_prompt.md, prompts/user_prompt.md, corridas/ y DECISIONES.md en la raíz.`
-      : dependencyInconsistency
-      ? `Estructura y scripts correctos, pero se detectó: ${dependencyInconsistency}. Corregir para alcanzar 10/10.`
+      : (dependencyInconsistency || hasDeprecatedModelRef)
+      ? `Estructura y scripts correctos, pero se detectó: ${[dependencyInconsistency, hasDeprecatedModelRef ? `referencia a modelo no vigente '${deprecatedModelName}'` : ''].filter(Boolean).join(' y ')}. Corregir para alcanzar 10/10.`
       : d3Score >= 9.5
       ? "Estructura impecable (10/10) con las 5 rutas en la raíz, dependencias fijadas y comandos de ejecución sin secretos expuestos. Cumple el checklist completo de 9–10."
       : "Cumple las 5 rutas y la guía de instalación. Para subir un nivel: Fijar versiones exactas con '==' en dependencias y proveer un script de ejecución en un solo paso."
@@ -853,17 +865,14 @@ export function normalizeEvaluatorResult(rawParsed: any, data: ExtractedRepoData
       const referencesCostosMd = /COSTOS\.md/i.test(readme);
       const hasNumericCalculations = /\b(\$|USD|tokens?|1e6|\d+\.\d+)\b/i.test(readme) && /(\*|\+|\/|por llamada|por corrida)/i.test(readme) && /peor caso|escenario|m[ií]nimo.*m[aá]ximo|rango/i.test(readme);
 
-      const allCostosText = (costosFile?.contenido || '') + (data.archivos_obligatorios['COSTOS.md'] || '') + readme;
-      const hasFullMatrix = /escenario|sin cach[eé]|con cach[eé]|pico 5|semanal.*anual/i.test(allCostosText) && /USD|d[oó]lar|\$|0[,.]/i.test(allCostosText) && /tokens/i.test(allCostosText);
-
-      if (hasCostosFile && hasFullMatrix) {
-        if (sug.includes('COSTOS.md') || sug.includes('archivo ausente') || sug.includes('no fue entregado') || sug.includes('rango min-max') || sug.includes('fórmula de cálculo') || puntajePonderado < 15.0) {
-          puntajeAsignado = '10/10';
-          puntajePonderado = 15.0;
-          sug = 'Nivel máximo alcanzado (10/10): Ya cumple el checklist completo; no queda ítem pendiente en esta dimensión.';
-          justif = 'El análisis económico documenta exhaustivamente en COSTOS.md la fórmula desagregada, matriz de 4 escenarios (con/sin caché y picos 5×), supuestos de volumen y justificación de modelo.';
-        }
-      } else if (referencesCostosMd && !hasCostosFile && !hasNumericCalculations) {
+      // Nota: se sacó deliberadamente una regla que forzaba 10/10 por matching de
+      // palabras clave (COSTOS.md + "escenario"/"caché"/"USD"/"tokens") sin verificar
+      // que los números fueran reales o coherentes. Eso es exactamente el tipo de
+      // gaming que el protocolo antifraude de esta rúbrica existe para evitar: un
+      // repo podría llenar COSTOS.md de esas palabras sueltas y sacar el máximo sin
+      // que el cálculo sea correcto. La corrección real de esta dimensión queda en
+      // manos del LLM aplicando el checklist de rubrica.md, no de un atajo determinista.
+      if (referencesCostosMd && !hasCostosFile && !hasNumericCalculations) {
         if (puntajePonderado > 12.0 || puntajeAsignado === '10/10' || puntajeAsignado === '9/10') {
           puntajeAsignado = '8/10';
           puntajePonderado = 12.0;

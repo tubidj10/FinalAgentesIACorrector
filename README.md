@@ -18,15 +18,14 @@ estructurado, idéntico en cada corrida.
 - Daniel Osorio — *Análisis Económico & Presupuesto de Tokens*
 - Sofia Rodriguez — *Diseño Pedagógico & Dossier de Feedback*
 
-## Las cinco piezas del contrato obligatorio
+## Las cuatro piezas
 
-| Pieza | Dónde | Propósito |
-|---|---|---|
-| 1. System Prompt | [`prompts/system_prompt.md`](./prompts/system_prompt.md) y [`agente/system_prompt.md`](./agente/system_prompt.md) | Directivas de auditoría, Fase 0 y protocolo antifraude. |
-| 2. User Prompt Template | [`prompts/user_prompt.md`](./prompts/user_prompt.md) | Template estructurado de ingesta de datos con sandbox. |
-| 3. Bitácora de Decisiones | [`DECISIONES.md`](./DECISIONES.md) | Registro de 5 iteraciones técnicas, tropiezos y alternativas descartadas. |
-| 4. Corridas Reales con Logs de API | [`corridas/`](./corridas/) | Corridas transaccionales con tokens reales, latencias y resiliencia 429. |
-| 5. La Rúbrica Ejecutable & Calibración | [`rubrica.md`](./rubrica.md) y [`calibracion.md`](./calibracion.md) | Especificación determinista y evidencia calibrada contra repos reales. |
+| Pieza | Dónde |
+|---|---|
+| 1. La rúbrica ejecutable | [`rubrica.md`](./rubrica.md) |
+| 2. El agente corrector | [`agente/`](./agente/) |
+| 3. Tres casos de prueba | [`casos/excelente/`](./casos/excelente/), [`casos/flojo/`](./casos/flojo/), [`casos/tramposo/`](./casos/tramposo/) |
+| 4. La calibración | [`calibracion.md`](./calibracion.md) |
 
 ## Cómo correr el corrector sobre un repo real
 
@@ -149,15 +148,21 @@ de MBA) y un promedio de **2 corridas por trabajo** (la corrección inicial
 más una re-verificación tras feedback, como pasó en la práctica con
 `FinalAgentesIA`).
 
-| Escenario | Corridas | Costo total sin Cache | Costo total con Prompt Caching | Ahorro |
-|---|---:|---:|---:|---:|
-| Caso base (30 trabajos × 2 corridas) | 60 | **USD 7,80** | **USD 2,10** | **73%** |
-| Peor caso (30 trabajos × 3 corridas + reintentos 429) | 90 | **USD 11,70** | **USD 3,15** | **73%** |
+| Escenario | Corridas | Costo total |
+|---|---:|---:|
+| Caso base (30 trabajos × 2 corridas) | 60 | **≈ USD 7,80** |
+| Caso peor (30 trabajos × 3 corridas, si cada uno pide una segunda re-verificación) | 90 | ≈ USD 11,70 |
 
-### Matriz de Sensibilidad de Prompt Caching & Curva de Latencia / SLO
-- **Amortización de Prefijo Fijo**: La base de `system_prompt.md` + `rubrica.md` (~9.700 tokens) se almacena en el cache del proveedor (Claude Context Cache / Gemini Implicit Cache). Las lecturas cacheadas se facturan a USD 0.30 / 1e6 tokens en lugar de USD 3.00 (descuento del 90% en la porción fija).
-- **Costo Marginal con Prompt Caching**: `(9.700 / 1e6) * 0.30 + (17.280 / 1e6) * 3.00 + (3.000 / 1e6) * 15.00` = `0.0029 + 0.0518 + 0.0450` = **USD 0.099 por corrida** (en Claude Sonnet) / **USD 0.0018 por corrida** (en Gemini 3.7 Flash).
-- **SLO de Latencia**: P50 < 1.5s, P95 < 3.2s bajo carga con reintentos controlados con Exponential Backoff y Jitter ante rate limits (429/503).
+Rango declarado: **USD 7,80–11,70** para corregir toda la materia una vez
+con este corrector — comparado contra el tiempo docente que reemplaza,
+es una cifra irrelevante en términos absolutos. La optimización obvia y
+no aplicada todavía: `agente/system_prompt.md` + `rubrica.md` (38.903
+caracteres, ~9.700 tokens) son idénticos en cada corrida — son el
+candidato ideal para *prompt caching*, que bajaría el costo real de la
+porción fija a una fracción de lo calculado arriba a partir de la segunda
+corrida en adelante. No lo medimos en vivo por no tener corridas reales
+vía API (ver Dimensión 1, Sistema, en la auto-evaluación) — es la primera
+mejora a activar si se corre `ejecutar_evaluacion.py` con una key real.
 
 ## Qué NO hace este agente (alcance negativo y gobierno L0–L4)
 

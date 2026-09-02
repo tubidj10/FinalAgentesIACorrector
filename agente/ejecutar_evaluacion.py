@@ -35,11 +35,8 @@ RUTAS_OBLIGATORIAS = [
     "DECISIONES.md",
 ]
 
-GEMINI_MODEL = "gemini-3.7-flash"
+GEMINI_MODEL = "gemini-3.6-flash"
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-MAX_OUTPUT_TOKENS = 4096
-MAX_ITERACIONES = 5
-LIMITE_ITERACIONES = 5
 
 import random
 
@@ -351,6 +348,15 @@ def main():
         evaluacion_json = None
         json_valido = False
 
+    schema_valido = validar_schema_pydantic(evaluacion_json) if json_valido else False
+    if json_valido and not schema_valido:
+        print(
+            "ADVERTENCIA: la salida es JSON válido pero no cumple el schema "
+            "esperado (nota_final, dimensiones, protocolo_antifraude, "
+            "revision_de_codigo) — revisar antes de usarla.",
+            file=sys.stderr,
+        )
+
     log = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "repositorio_evaluado": repo_url,
@@ -365,6 +371,7 @@ def main():
         "response": {
             "texto_crudo": texto_respuesta,
             "json_valido": json_valido,
+            "schema_valido": schema_valido,
             "evaluacion": evaluacion_json,
         },
         "usage": resultado["usage"],
