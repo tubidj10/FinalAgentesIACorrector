@@ -35,8 +35,54 @@ RUTAS_OBLIGATORIAS = [
     "DECISIONES.md",
 ]
 
-GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_MODEL = "gemini-3.7-flash"
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+MAX_OUTPUT_TOKENS = 4096
+MAX_ITERACIONES = 5
+LIMITE_ITERACIONES = 5
+
+import random
+
+try:
+    from pydantic import BaseModel, Field
+    class EvaluacionSalidaSchema(BaseModel):
+        nota_final: float = Field(ge=0, le=100)
+        dimensiones: list = Field(default_factory=list)
+        protocolo_antifraude: dict = Field(default_factory=dict)
+        revision_de_codigo: dict = Field(default_factory=dict)
+except ImportError:
+    BaseModel = None
+    EvaluacionSalidaSchema = None
+
+def validar_schema_pydantic(payload_json: dict) -> bool:
+    """Valida el contrato de salida usando Pydantic BaseModel / JSONSchema validator."""
+    if not isinstance(payload_json, dict):
+        return False
+    if EvaluacionSalidaSchema and BaseModel:
+        try:
+            EvaluacionSalidaSchema.model_validate(payload_json)
+            return True
+        except Exception:
+            return False
+    return "nota_final" in payload_json and "dimensiones" in payload_json
+
+def reintentar_con_exponential_backoff(func, *args, max_intentos=4, base_delay=1.0, max_delay=16.0, jitter=0.5, **kwargs):
+    """Implementa Exponential Backoff con Jitter y límite estricto de reintentos ante 429/503."""
+    ultimo_error = None
+    for intento in range(1, max_intentos + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            ultimo_error = e
+            msg = str(e).lower()
+            es_rate_limit = ("429" in msg or "503" in msg or "rate" in msg or "quota" in msg or "overloaded" in msg or "resource_exhausted" in msg)
+            if intento < max_intentos and es_rate_limit:
+                backoff = min(max_delay, (base_delay * (2 ** (intento - 1)))) + random.uniform(0, jitter)
+                print(f"[REINTENTO {intento}/{max_intentos}] Capturado error de API/Rate Limit (429/503). Esperando {backoff:.2f}s con jitter...", file=sys.stderr)
+                time.sleep(backoff)
+            else:
+                raise ultimo_error
+    raise ultimo_error
 
 # Fase 5 (revisión de código, no puntuada): extensiones que vale la pena
 # traer, y límites para no inflar el prompt con un repo entero.
@@ -294,7 +340,7 @@ def main():
         llamar = _llamar_anthropic
 
     t0 = time.monotonic()
-    resultado = llamar(system_prompt_completo, user_prompt, api_key)
+    resultado = reintentar_con_exponential_backoff(llamar, system_prompt_completo, user_prompt, api_key)
     latencia_ms = round((time.monotonic() - t0) * 1000)
 
     texto_respuesta = resultado["texto_respuesta"]

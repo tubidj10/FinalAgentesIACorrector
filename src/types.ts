@@ -153,3 +153,32 @@ export interface RubricDimensionDef {
   checklist_6_8: string[];
   checklist_9_10: string[];
 }
+
+export interface EvaluationHistoryRecord {
+  id: string;
+  timestamp: string;
+  createdAt?: any;
+  repoUrl: string;
+  repoName: string;
+  owner?: string;
+  nota_final: number;
+  provider?: string;
+  modelo?: string;
+  dimensiones: DimensionEvaluation[];
+  salud_tecnica?: number;
+  nivel_riesgo?: string;
+  evaluator_email?: string;
+  evaluator_name?: string;
+  evaluator_photo?: string;
+  mode?: 'live' | 'batch' | 'comparador' | 'preset';
+  source?: 'github' | 'preset' | 'local';
+  fase0?: any;
+  protocolo_antifraude?: any;
+  revision_de_codigo?: any;
+  auditoria_forense?: ForensicAuditSummary;
+  historia_git?: any;
+  log?: TransactionLog;
+  repo?: any;
+  execution_time_ms?: number;
+}
+

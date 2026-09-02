@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { DimensionEvaluation } from '../types';
 import { StudentFeedbackDossier } from './StudentFeedbackDossier';
+import { useAuth } from '../context/AuthContext';
+import { saveEvaluationRecord } from '../lib/historyService';
 
 interface BatchItem {
   id: string;
@@ -38,6 +40,7 @@ type SortField = 'original' | 'label' | 'status' | 'nota_final' | 'd1' | 'd2' | 
 type SortDirection = 'asc' | 'desc';
 
 export const BatchEvaluator: React.FC = () => {
+  const { user } = useAuth();
   const [inputText, setInputText] = useState(
 `# Pegá aquí un repositorio por línea o seleccioná los casos de la cursada
 excelente
@@ -154,6 +157,31 @@ https://github.com/tubidj10/Facultad`
           }
           return item;
         }));
+
+        // Persist to evaluation history
+        saveEvaluationRecord({
+          repoUrl: targetItem.url,
+          repoName: json.repo?.repo || targetItem.label || targetItem.url.split('/').pop() || 'repo',
+          owner: json.repo?.owner,
+          nota_final: notaCalculada,
+          provider: result.log?.proveedor || 'auto',
+          modelo: result.log?.modelo || 'gemini-flash-latest',
+          dimensiones: dims,
+          salud_tecnica: evaluacion?.auditoria_forense?.puntuacion_salud_tecnica ?? 100,
+          nivel_riesgo: evaluacion?.auditoria_forense?.nivel_riesgo ?? 'BAJO',
+          evaluator_email: user?.email || 'anónimo',
+          evaluator_name: user?.displayName || user?.email?.split('@')[0] || 'Evaluador',
+          evaluator_photo: user?.photoURL || undefined,
+          mode: 'batch',
+          fase0: evaluacion?.fase0,
+          protocolo_antifraude: evaluacion?.protocolo_antifraude,
+          revision_de_codigo: evaluacion?.revision_de_codigo,
+          auditoria_forense: evaluacion?.auditoria_forense,
+          historia_git: json.repo?.historia_git,
+          log: result.log,
+          repo: json.repo,
+          timestamp: new Date().toISOString()
+        }).catch(e => console.warn('Could not save batch eval to history:', e));
       } catch (err: any) {
         setItems(prev => prev.map((item, idx) => {
           if (idx === index) {

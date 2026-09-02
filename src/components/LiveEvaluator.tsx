@@ -21,13 +21,17 @@ import { ActionPlan } from './ActionPlan';
 import { StudentFeedbackDossier } from './StudentFeedbackDossier';
 import { ForensicAuditCard } from './ForensicAuditCard';
 import { DimensionEvaluation, EvaluacionCompleta, TransactionLog, ForensicAuditSummary } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { saveEvaluationRecord } from '../lib/historyService';
 
 interface LiveEvaluatorProps {
   onSelectCalibrationPreset?: (id: string) => void;
+  initialRepoUrl?: string;
 }
 
-export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
-  const [repoUrl, setRepoUrl] = useState('https://github.com/casos-prueba/triage-excelente');
+export const LiveEvaluator: React.FC<LiveEvaluatorProps> = ({ initialRepoUrl }) => {
+  const { user } = useAuth();
+  const [repoUrl, setRepoUrl] = useState(initialRepoUrl || 'https://github.com/casos-prueba/triage-excelente');
   const [githubToken, setGithubToken] = useState('');
   const [provider, setProvider] = useState<'auto' | 'gemini' | 'anthropic'>('auto');
   const [loading, setLoading] = useState(false);
@@ -123,6 +127,31 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = () => {
         log: result.log,
         repo: json.repo
       });
+
+      // Save to persistent evaluation history
+      saveEvaluationRecord({
+        repoUrl: url,
+        repoName: json.repo?.repo || url.split('/').pop() || 'repositorio',
+        owner: json.repo?.owner,
+        nota_final: notaCalculada,
+        provider: result.log?.proveedor || provider,
+        modelo: result.log?.modelo || (provider === 'gemini' ? 'gemini-flash-latest' : 'motor_calibrado'),
+        dimensiones: dims,
+        salud_tecnica: evaluacion?.auditoria_forense?.puntuacion_salud_tecnica ?? 100,
+        nivel_riesgo: evaluacion?.auditoria_forense?.nivel_riesgo ?? 'BAJO',
+        evaluator_email: user?.email || 'anónimo',
+        evaluator_name: user?.displayName || user?.email?.split('@')[0] || 'Evaluador',
+        evaluator_photo: user?.photoURL || undefined,
+        mode: 'live',
+        fase0: evaluacion?.fase0,
+        protocolo_antifraude: evaluacion?.protocolo_antifraude,
+        revision_de_codigo: evaluacion?.revision_de_codigo,
+        auditoria_forense: evaluacion?.auditoria_forense,
+        historia_git: json.repo?.historia_git,
+        log: result.log,
+        repo: json.repo,
+        timestamp: new Date().toISOString()
+      }).catch(err => console.warn('Could not auto-save evaluation to history:', err));
     } catch (e: any) {
       setError(e.message || 'Ocurrió un error inesperado');
     } finally {

@@ -119,7 +119,9 @@ export function runForensicAudit(data: ExtractedRepoData): ForensicAuditSummary 
   const hasRealLLMCall = (
     /google\.genai|genai\.Client|openai\.OpenAI|anthropic\.Anthropic|ChatOpenAI|ChatGoogleGenerativeAI|GenerativeModel|createChatCompletion/i.test(allRepoCode) ||
     /requests\.post\(['"]https:\/\/(?:generativelanguage|api\.openai|api\.anthropic)/i.test(allRepoCode) ||
-    /fetch\(['"]https:\/\/(?:generativelanguage|api\.openai|api\.anthropic)/i.test(allRepoCode)
+    /fetch\(['"]https:\/\/(?:generativelanguage|api\.openai|api\.anthropic)/i.test(allRepoCode) ||
+    /(?:urllib\.request|urllib3|axios|http\.client)[\s\S]*?(?:generativelanguage\.googleapis\.com|api\.anthropic\.com|api\.openai\.com|x-goog-api-key|x-api-key)/i.test(allRepoCode) ||
+    /https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models/i.test(allRepoCode)
   );
 
   if (isMockApp && !hasRealLLMCall) {

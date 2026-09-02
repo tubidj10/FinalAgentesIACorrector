@@ -67,6 +67,61 @@
         }
       },
       "required": ["email", "requestedAt", "status"]
+    },
+    "evaluations_history": {
+      "description": "Registro histórico y trazabilidad de todas las revisiones y evaluaciones ejecutadas",
+      "properties": {
+        "repoUrl": {
+          "type": "string",
+          "description": "URL o preset del repositorio evaluado"
+        },
+        "repoName": {
+          "type": "string",
+          "description": "Nombre del repositorio"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Owner u organización de GitHub"
+        },
+        "nota_final": {
+          "type": "number",
+          "description": "Calificación numérica final de la evaluación sobre 100"
+        },
+        "provider": {
+          "type": "string",
+          "description": "Proveedor LLM o motor utilizado (gemini, anthropic, motor_calibrado)"
+        },
+        "modelo": {
+          "type": "string",
+          "description": "Modelo de IA específico utilizado"
+        },
+        "salud_tecnica": {
+          "type": "number",
+          "description": "Puntaje forense de salud técnica 0-100"
+        },
+        "nivel_riesgo": {
+          "type": "string",
+          "description": "Nivel de riesgo operativo determinado"
+        },
+        "evaluator_email": {
+          "type": "string",
+          "description": "Email del usuario que corrió la evaluación"
+        },
+        "evaluator_name": {
+          "type": "string",
+          "description": "Nombre del evaluador"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp ISO de ejecución"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["live", "batch", "comparador"],
+          "description": "Modo en que se ejecutó la evaluación"
+        }
+      },
+      "required": ["repoUrl", "nota_final", "timestamp"]
     }
   }
 }

@@ -99,10 +99,15 @@ export const StudentFeedbackDossier: React.FC<StudentFeedbackDossierProps> = ({ 
 
     md += `## 3. 🎯 Evidencias Específicas Detectadas\n\n`;
     dimensiones.forEach((d, idx) => {
-      md += `### ${d.dimension} (${d.escala_elegida})\n`;
+      const peso = d.peso || (idx === 0 ? 30 : idx === 1 ? 25 : 15);
+      const isFull = Number(d.puntaje_ponderado) >= peso - 0.05;
+      const escala = d.escala_elegida || (isFull ? '10/10' : d.puntaje_asignado);
+      md += `### ${d.dimension} (${escala})\n`;
       md += `- **Evidencia encontrada:** ${d.evidencia_citada || d.justificacion}\n`;
-      if (d.sugerencia_concreta) {
+      if (!isFull && d.sugerencia_concreta) {
         md += `- **💡 Qué debés hacer para subir la nota:** ${d.sugerencia_concreta}\n`;
+      } else if (isFull) {
+        md += `- **Estado:** ✅ Nivel máximo alcanzado (10/10)\n`;
       }
       md += `\n`;
     });
@@ -136,12 +141,24 @@ export const StudentFeedbackDossier: React.FC<StudentFeedbackDossierProps> = ({ 
       }
     }
 
-    md += `## 6. 🚀 Plan de Acción Inmediato (Ruta al 10)\n\n`;
-    const sorted = [...dimensiones].sort((a, b) => Number(a.puntaje_ponderado) - Number(b.puntaje_ponderado));
-    sorted.slice(0, 3).forEach((d, i) => {
-      md += `${i + 1}. **${d.dimension}**: ${d.sugerencia_concreta || 'Completar archivos y robustecer pruebas.'}\n`;
-    });
-    md += `\n---\n\n`;
+    const sortedWithGap = [...dimensiones]
+      .filter((d, idx) => {
+        const peso = d.peso || (idx === 0 ? 30 : idx === 1 ? 25 : 15);
+        return Number(d.puntaje_ponderado) < peso - 0.05;
+      })
+      .sort((a, b) => Number(a.puntaje_ponderado) - Number(b.puntaje_ponderado));
+
+    if (sortedWithGap.length > 0) {
+      md += `## 6. 🚀 Plan de Acción Inmediato (Ruta al 10)\n\n`;
+      sortedWithGap.slice(0, 3).forEach((d, i) => {
+        md += `${i + 1}. **${d.dimension}**: ${d.sugerencia_concreta || 'Completar los criterios del checklist y profundizar la evidencia técnica.'}\n`;
+      });
+      md += `\n`;
+    } else {
+      md += `## 6. 🚀 Estado de Excelencia\n\n`;
+      md += `✅ **Nivel Máximo Alcanzado:** El repositorio cumple el 100% de los estándares de excelencia de las 5 dimensiones. No se requieren cambios para la entrega final.\n\n`;
+    }
+    md += `---\n\n`;
     md += `### 🎓 Cátedra & Equipo Evaluador\n`;
     md += `**Materia:** Programación de y con Agentes de IA · MBA UCEMA 2026  \n`;
     md += `**Profesor Titular:** Alfredo B. Roisenzvit  \n`;

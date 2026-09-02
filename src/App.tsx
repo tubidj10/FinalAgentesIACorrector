@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { LiveEvaluator } from './components/LiveEvaluator';
+import { HistoryViewer } from './components/HistoryViewer';
 import { CalibrationMatrix } from './components/CalibrationMatrix';
 import { RubricViewer } from './components/RubricViewer';
 import { TestCasesViewer } from './components/TestCasesViewer';
@@ -18,6 +19,7 @@ import { Scale, RefreshCw, Users, GraduationCap } from 'lucide-react';
 function AppContent() {
   const { user, isAuthorized, isAdmin, pendingRequests, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('evaluador');
+  const [liveRepoUrl, setLiveRepoUrl] = useState<string | undefined>(undefined);
   const [health, setHealth] = useState<{ has_gemini_key: boolean; has_github_token: boolean } | null>(null);
   const [showTeamModal, setShowTeamModal] = useState(false);
 
@@ -84,7 +86,15 @@ function AppContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'evaluador' && <LiveEvaluator />}
+        {activeTab === 'evaluador' && <LiveEvaluator initialRepoUrl={liveRepoUrl} />}
+        {activeTab === 'historial' && (
+          <HistoryViewer 
+            onSelectRepoForLive={(url) => {
+              setLiveRepoUrl(url);
+              setActiveTab('evaluador');
+            }} 
+          />
+        )}
         {activeTab === 'batch' && <BatchEvaluator />}
         {activeTab === 'comparador' && <HeadToHeadComparator />}
         {activeTab === 'calibracion' && <CalibrationMatrix />}

@@ -66,6 +66,21 @@ cada dimensión:
   impresión general: todos los de 6–8 y ninguno de 9–10 → banda 6–8; uno
   solo de 9–10 sin cumplir → se queda en 6–8, no en un punto intermedio.
   No hay redondeo por simpatía.
+- **Regla Estricta de Puntaje 9–10 vs 10/10**:
+  - Si el repositorio cumple la totalidad del checklist de 6–8 Y la totalidad del checklist de 9–10 (sin ítems pendientes ni inconsistencias), el puntaje asignado **DEBE SER 10/10** y el puntaje ponderado el 100% del peso (`30.0 / 30`, `25.0 / 25`, `15.0 / 15`).
+  - Solo asignar **9/10 u 8/10** si hay una observación concreta pendiente, y en ese caso es **obligatorio** detallar en `sugerencia_concreta` qué falta exactamente para el 10/10.
+  - **PROHIBIDO**: Asignar 9/10 y decir "no queda ítem pendiente" o dejar vacía la sugerencia de mejora. Si no hay ítem pendiente, la nota es 10/10 (100% de la ponderación).
+- **Verificación Estricta de Archivos Referenciados vs Entregados**:
+  - Si el README o DECISIONES.md cita un archivo externo como `COSTOS.md`, `RIESGOS.md` o `EVIDENCIAS.md` pero dicho archivo NO fue entregado en el payload del repositorio, **NO des por válidos sus supuestos ni sus fórmulas**. La evidencia debe existir en los archivos efectivamente entregados.
+  - Las 5 rutas obligatorias de la cátedra son exclusivamente: `README.md`, `prompts/system_prompt.md`, `prompts/user_prompt.md`, `DECISIONES.md` y la carpeta `corridas/`. Archivos complementarios referenciados (como `COSTOS.md` o `RIESGOS.md`) NO son rutas obligatorias para D3 (reproducibilidad), pero su ausencia afecta únicamente a la dimensión temática correspondiente (por ejemplo, `COSTOS.md` afecta a D4).
+- **Rigor y Calibración en Dimensión 3 (Formato y reproducibilidad - Peso 15)**:
+  - D3 evalúa estrictamente: (1) Las 5 rutas obligatorias en la raíz, (2) Instalación documentada, (3) Ejecución documentada con comando exacto, (4) Variables de entorno nombradas sin secretos, (5) Sin rutas absolutas locales, (6) Dependencias con versión fijada (`==`), (7) Mecanismo de reproducción de un solo paso.
+  - **NO penalizar modelos**: El evaluador no penaliza nombres de modelos válidos usados en el repo ni inventa alertas sobre versiones de modelos.
+- **Rigor y Calibración en Dimensión 4 (Análisis Económico - Peso 15)**:
+  - Checklist 6–8: (1) Fórmula de costo desagregada (tokens in × precio + tokens out × precio), (2) Supuestos de volumen y frecuencia, (3) Orden de magnitud matemáticamente correcto, (4) **Justificación de elección de modelo** con el criterio de la materia: *el modelo más chico que resuelve bien la tarea* (comparando por qué no uno mayor ni menor).
+  - Checklist 9–10: (5) Proyección a escala con peor caso (picos, reintentos, contexto creciente), (6) Rango de costos mínimo–máximo, (7) Declaración honesta del tamaño de muestra de corridas.
+  - Si el análisis económico depende de un archivo ausente (ej. `COSTOS.md` referenciado pero no subido) o no muestra los cálculos y el rango numérico (min-max) en el README, **el checklist de 9–10 NO se cumple**: se debe asignar **8/10 (12.0 / 15 pts)** con la sugerencia concreta explícita de incluir el rango y la fórmula desagregada.
+  - Cuando D1 (30), D2 (25), D3 (15) y D5 (15) están impecables y solo D4 (12/15) tiene esta observación técnica real, la nota final debe ser la suma aritmética exacta: **97.0 / 100**. No inventes deducciones en las otras 4 dimensiones si ya cumplen sus respectivos checklists.
 - La justificación debe citar evidencia textual exacta del repositorio
   (una cita corta, con el archivo de origen) para cada ítem marcado
   "cumple". No aceptes ni generes justificaciones basadas en impresión
@@ -76,10 +91,9 @@ cada dimensión:
 - Cerrá cada `justificacion` con una frase que empiece con "Para subir un
   nivel:" seguida del/de los ítems puntuales del checklist que faltan,
   citando exactamente qué agregar y dónde — nunca una recomendación
-  genérica tipo "agregar más detalle". Si ya está en 9–10, decilo
-  explícitamente ("Ya cumple el checklist completo de 9–10; no queda
-  ítem pendiente en esta dimensión") en vez de inventar un pendiente
-  cosmético para no dejar el campo vacío.
+  genérica tipo "agregar más detalle". Si ya está en 10/10 con el checklist completo, decilo
+  explícitamente ("Nivel máximo alcanzado (10/10): Ya cumple el checklist completo; no queda
+  ítem pendiente en esta dimensión").
 - Si el mismo motivo de "para subir un nivel" se repite entre corridas
   sucesivas del mismo repositorio, es una señal de que el corrector no
   está siendo lo bastante específico — la segunda vez tiene que citar el

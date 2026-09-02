@@ -175,7 +175,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ notaFinal, dimensiones, pr
                               </p>
                             )}
                             <p className="text-[11px] text-emerald-300 bg-emerald-950/30 p-1.5 rounded border border-emerald-800/40">
-                              💡 <strong>Para alcanzar 10/10:</strong> {dim.sugerencia_concreta}
+                              💡 <strong>Para alcanzar 10/10:</strong> {dim.sugerencia_concreta || (failedItem ? `Completar y documentar: ${failedItem.item}` : 'Completar los criterios del checklist y profundizar la evidencia')}
                             </p>
                           </div>
                         ) : (

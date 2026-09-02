@@ -14,13 +14,14 @@ import {
   LogOut, 
   Crown, 
   User as UserIcon,
-  GraduationCap
+  GraduationCap,
+  History
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SUPER_ADMIN_EMAIL } from '../lib/firebase';
 import { TeamCreditsModal } from './TeamCreditsModal';
 
-export type ActiveTab = 'evaluador' | 'batch' | 'comparador' | 'calibracion' | 'rubrica' | 'casos' | 'economia' | 'gobernanza' | 'usuarios';
+export type ActiveTab = 'evaluador' | 'historial' | 'batch' | 'comparador' | 'calibracion' | 'rubrica' | 'casos' | 'economia' | 'gobernanza' | 'usuarios';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -34,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
 
   const tabs = [
     { id: 'evaluador' as ActiveTab, label: 'Evaluador en Vivo', icon: Play },
+    { id: 'historial' as ActiveTab, label: 'Historial de Revisiones', icon: History },
     { id: 'batch' as ActiveTab, label: 'Evaluador en Lote', icon: ListOrdered },
     { id: 'comparador' as ActiveTab, label: 'Comparador A vs B', icon: GitCompare },
     { id: 'calibracion' as ActiveTab, label: 'Matriz de Calibración', icon: BarChart3 },

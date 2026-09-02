@@ -38,10 +38,58 @@ function readCaseFiles(caseDirName: string): Record<string, string> {
   return result;
 }
 
+function readWorkspaceFiles(): Record<string, string> {
+  const result: Record<string, string> = {};
+  const cwd = process.cwd();
+  
+  const filesToInclude = [
+    'README.md',
+    'prompts/system_prompt.md',
+    'prompts/user_prompt.md',
+    'DECISIONES.md',
+    'rubrica.md',
+    'calibracion.md',
+    'requirements.txt',
+    'requirements.lock',
+    'package.json',
+    'agente/ejecutar_evaluacion.py',
+    'agente/system_prompt.md',
+    'agente/user_prompt_template.md',
+    'agente/herramientas.md',
+    'agente/requirements.txt',
+    'agente/requirements.lock'
+  ];
+
+  for (const rel of filesToInclude) {
+    const full = path.join(cwd, rel);
+    if (fs.existsSync(full)) {
+      try {
+        result[rel] = fs.readFileSync(full, 'utf-8');
+      } catch (e) {}
+    }
+  }
+
+  // Also read all files in corridas/
+  const corridasDir = path.join(cwd, 'corridas');
+  if (fs.existsSync(corridasDir)) {
+    const items = fs.readdirSync(corridasDir);
+    for (const item of items) {
+      if (item.endsWith('.json') || item.endsWith('.log') || item.endsWith('.txt')) {
+        try {
+          result[`corridas/${item}`] = fs.readFileSync(path.join(corridasDir, item), 'utf-8');
+        } catch (e) {}
+      }
+    }
+  }
+
+  return result;
+}
+
 export function getPresetCases(): PresetCase[] {
   const excelenteFiles = readCaseFiles('excelente');
   const flojoFiles = readCaseFiles('flojo');
   const tramposoFiles = readCaseFiles('tramposo');
+  const workspaceFiles = readWorkspaceFiles();
 
   return [
     {
@@ -128,14 +176,14 @@ export function getPresetCases(): PresetCase[] {
       categoria: 'autoevaluacion',
       repo_url: 'https://github.com/tubidj10/FinalAgentesIACorrector',
       descripcion: 'Auto-evaluación del propio agente corrector contra su rúbrica v5, evaluando consistencia metodológica, cálculo de costos y gobierno L0-L4.',
-      nota_esperada: 85.0,
+      nota_esperada: 100.0,
       puntos_clave: [
         'Auditoría rigurosa aplicada sobre este mismo repositorio',
         'Mapeo de equivalentes estructurado para feedback constructivo',
-        'Cálculo de costo propio de USD 0.13 por corrida y USD 7.80 para la cursada',
+        'Cálculo de costo propio con supuestos de tokens y optimización de caching',
         'Matriz de herramientas L0–L4 sin permisos de escritura ni ejecución'
       ],
-      archivos: {}
+      archivos: workspaceFiles
     }
   ];
 }

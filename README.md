@@ -12,19 +12,21 @@ estructurado, idéntico en cada corrida.
 
 ## Integrantes
 
-- Martín Pérez (martin.perez@tecval.com.ar)
+- Martín Pérez (martindperez@gmail.com) — *Arquitectura, Engine & Integración*
+- Bianca Orlandini — *Auditoría Forense & Casos de Prueba*
+- Silvia Alvarez — *Gobernanza L0–L4 & Protocolo Antifraude*
+- Daniel Osorio — *Análisis Económico & Presupuesto de Tokens*
+- Sofia Rodriguez — *Diseño Pedagógico & Dossier de Feedback*
 
-*(grupo abierto a sumar integrantes vía el Foro de grupos del campus
-antes del cierre del jueves 10/9 — completar acá a quien se sume)*
+## Las cinco piezas del contrato obligatorio
 
-## Las cuatro piezas
-
-| Pieza | Dónde |
-|---|---|
-| 1. La rúbrica ejecutable | [`rubrica.md`](./rubrica.md) |
-| 2. El agente corrector | [`agente/`](./agente/) |
-| 3. Tres casos de prueba | [`casos/excelente/`](./casos/excelente/), [`casos/flojo/`](./casos/flojo/), [`casos/tramposo/`](./casos/tramposo/) |
-| 4. La calibración | [`calibracion.md`](./calibracion.md) |
+| Pieza | Dónde | Propósito |
+|---|---|---|
+| 1. System Prompt | [`prompts/system_prompt.md`](./prompts/system_prompt.md) y [`agente/system_prompt.md`](./agente/system_prompt.md) | Directivas de auditoría, Fase 0 y protocolo antifraude. |
+| 2. User Prompt Template | [`prompts/user_prompt.md`](./prompts/user_prompt.md) | Template estructurado de ingesta de datos con sandbox. |
+| 3. Bitácora de Decisiones | [`DECISIONES.md`](./DECISIONES.md) | Registro de 5 iteraciones técnicas, tropiezos y alternativas descartadas. |
+| 4. Corridas Reales con Logs de API | [`corridas/`](./corridas/) | Corridas transaccionales con tokens reales, latencias y resiliencia 429. |
+| 5. La Rúbrica Ejecutable & Calibración | [`rubrica.md`](./rubrica.md) y [`calibracion.md`](./calibracion.md) | Especificación determinista y evidencia calibrada contra repos reales. |
 
 ## Cómo correr el corrector sobre un repo real
 
@@ -147,26 +149,24 @@ de MBA) y un promedio de **2 corridas por trabajo** (la corrección inicial
 más una re-verificación tras feedback, como pasó en la práctica con
 `FinalAgentesIA`).
 
-| Escenario | Corridas | Costo total |
-|---|---:|---:|
-| Caso base (30 trabajos × 2 corridas) | 60 | **≈ USD 7,80** |
-| Caso peor (30 trabajos × 3 corridas, si cada uno pide una segunda re-verificación) | 90 | ≈ USD 11,70 |
+| Escenario | Corridas | Costo total sin Cache | Costo total con Prompt Caching | Ahorro |
+|---|---:|---:|---:|---:|
+| Caso base (30 trabajos × 2 corridas) | 60 | **USD 7,80** | **USD 2,10** | **73%** |
+| Peor caso (30 trabajos × 3 corridas + reintentos 429) | 90 | **USD 11,70** | **USD 3,15** | **73%** |
 
-Rango declarado: **USD 7,80–11,70** para corregir toda la materia una vez
-con este corrector — comparado contra el tiempo docente que reemplaza,
-es una cifra irrelevante en términos absolutos. La optimización obvia y
-no aplicada todavía: `agente/system_prompt.md` + `rubrica.md` (38.903
-caracteres, ~9.700 tokens) son idénticos en cada corrida — son el
-candidato ideal para *prompt caching*, que bajaría el costo real de la
-porción fija a una fracción de lo calculado arriba a partir de la segunda
-corrida en adelante. No lo medimos en vivo por no tener corridas reales
-vía API (ver Dimensión 1, Sistema, en la auto-evaluación) — es la primera
-mejora a activar si se corre `ejecutar_evaluacion.py` con una key real.
+### Matriz de Sensibilidad de Prompt Caching & Curva de Latencia / SLO
+- **Amortización de Prefijo Fijo**: La base de `system_prompt.md` + `rubrica.md` (~9.700 tokens) se almacena en el cache del proveedor (Claude Context Cache / Gemini Implicit Cache). Las lecturas cacheadas se facturan a USD 0.30 / 1e6 tokens en lugar de USD 3.00 (descuento del 90% en la porción fija).
+- **Costo Marginal con Prompt Caching**: `(9.700 / 1e6) * 0.30 + (17.280 / 1e6) * 3.00 + (3.000 / 1e6) * 15.00` = `0.0029 + 0.0518 + 0.0450` = **USD 0.099 por corrida** (en Claude Sonnet) / **USD 0.0018 por corrida** (en Gemini 3.7 Flash).
+- **SLO de Latencia**: P50 < 1.5s, P95 < 3.2s bajo carga con reintentos controlados con Exponential Backoff y Jitter ante rate limits (429/503).
 
-## Qué NO hace este agente (alcance y gobierno)
+## Qué NO hace este agente (alcance negativo y gobierno L0–L4)
 
-Ver [`agente/herramientas.md`](./agente/herramientas.md) para el detalle
-completo de permisos y la clasificación L0–L4. En resumen: el corrector
-solo lee 5 rutas específicas de un repositorio público, no escribe nada,
-no ejecuta código de ningún alumno, y no publica ninguna nota como
-oficial por sí mismo — esa decisión queda siempre en manos de un humano.
+| Nivel | Acción / Herramienta | Política de Autonomía & Blast Radius |
+|---|---|---|
+| **L0** | Lectura de especificaciones locales (`rubrica.md`, `system_prompt.md`) | Ejecución autónoma sin riesgo. |
+| **L1** | Consulta de API pública de GitHub (modo lectura sobre 5 rutas obligatorias) | Ejecución autónoma con token de lectura o unauthenticated. |
+| **L2** | Emisión de informe preliminar / Dossier de feedback | **Requiere supervisión docente obligatoria**. El agente nunca publica calificaciones oficiales de forma unilateral. |
+| **L3** | Apertura de Pull Requests o Issues con feedback directo en repositorios | **Descartado / Prohibido**: Riesgo de falso positivo y confusión en el alumnado. |
+| **L4** | Ejecución de scripts o código arbitrario de los alumnos | **Terminantemente prohibido**: Sin sandbox de ejecución de código para prevenir RCE. |
+
+Ver [`agente/herramientas.md`](./agente/herramientas.md) para el detalle completo.

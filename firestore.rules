@@ -34,6 +34,13 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
+    // Evaluations history: Authenticated users can log evaluations and view history
+    match /evaluations_history/{evalId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
     // Default rule: Catch-all lock
     match /{document=**} {
       allow read, write: if isSuperAdmin();
