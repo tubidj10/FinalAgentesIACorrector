@@ -594,6 +594,7 @@ export const HistoryViewer: React.FC<HistoryViewerProps> = ({ onSelectRepoForLiv
                     revision_de_codigo: selectedRecord.revision_de_codigo,
                     historia_git: selectedRecord.historia_git,
                     auditoria_forense: selectedRecord.auditoria_forense,
+                    log: selectedRecord.log,
                     repo: selectedRecord.repo || { repo: selectedRecord.repoName, url: selectedRecord.repoUrl }
                   }}
                 />

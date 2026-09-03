@@ -215,6 +215,7 @@ export const LiveEvaluator: React.FC<LiveEvaluatorProps> = ({ initialRepoUrl }) 
         fase0: evaluacion?.fase0,
         protocolo_antifraude: evaluacion?.protocolo_antifraude,
         revision_de_codigo: evaluacion?.revision_de_codigo,
+        auditoria_forense: evaluacion?.auditoria_forense || evaluacion?.revision_de_codigo?.auditoria_forense,
         historia_git: json.repo?.historia_git,
         log: result.log,
         repo: json.repo

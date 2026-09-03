@@ -667,7 +667,9 @@ https://github.com/tubidj10/Facultad`
               fase0: selectedItem.rawResult.evaluacion?.fase0 || selectedItem.rawResult.result?.evaluacion?.fase0,
               protocolo_antifraude: selectedItem.rawResult.evaluacion?.protocolo_antifraude || selectedItem.rawResult.result?.evaluacion?.protocolo_antifraude,
               revision_de_codigo: selectedItem.rawResult.evaluacion?.revision_de_codigo || selectedItem.rawResult.result?.evaluacion?.revision_de_codigo,
+              auditoria_forense: selectedItem.rawResult.evaluacion?.auditoria_forense || selectedItem.rawResult.result?.evaluacion?.auditoria_forense || selectedItem.rawResult.evaluacion?.revision_de_codigo?.auditoria_forense,
               historia_git: selectedItem.rawResult.repo?.historia_git,
+              log: selectedItem.rawResult.log || selectedItem.rawResult.result?.log,
               repo: selectedItem.rawResult.repo
             }}
           />
