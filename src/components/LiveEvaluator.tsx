@@ -45,6 +45,15 @@ export interface RepoOption {
 
 export const CHECKABLE_REPOS: RepoOption[] = [
   {
+    id: '2daclase',
+    category: 'Repositorio Trabajo Final',
+    label: 'tubidj10/2daClaseAgentesIA',
+    url: 'https://github.com/tubidj10/2daClaseAgentesIA',
+    badge: 'Entrega 3',
+    scoreHint: '100 pts',
+    desc: 'Agente triage SRE con fallback, corridas manuales y JSON, COSTOS.md y suite 12/12.'
+  },
+  {
     id: 'finalagentesia',
     category: 'Repositorio Trabajo Final',
     label: 'tubidj10/FinalAgentesIA',

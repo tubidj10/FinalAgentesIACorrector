@@ -8,6 +8,7 @@ export interface ExtractedRepoData {
   archivos_faltantes: string[];
   corridas: { nombre: string; contenido: string }[];
   archivos_codigo: { ruta: string; contenido: string }[];
+  todos_los_archivos_repo?: string[];
   historia_git?: {
     total_commits: number;
     autores: string[];
@@ -387,6 +388,7 @@ export async function extractRepoContents(
         archivos_faltantes,
         corridas,
         archivos_codigo,
+        todos_los_archivos_repo: Object.keys(matchedPreset.archivos),
         historia_git,
         metadatos_extraccion: {
           total_archivos: Object.keys(matchedPreset.archivos).length,
@@ -516,8 +518,15 @@ export async function extractRepoContents(
         return false;
       }
 
-      // Extensiones de evidencia válidas: json, txt, log
-      const validExt = lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.ndjson');
+      // Extensiones de evidencia válidas: json, txt, log, ndjson, o .md que documenten corridas/casos/trazas
+      const isCorridaMd = lower.endsWith('.md') && (
+        fileName.includes('corrida') ||
+        fileName.includes('caso') ||
+        fileName.includes('run') ||
+        fileName.includes('trace') ||
+        fileName.includes('manual')
+      );
+      const validExt = lower.endsWith('.json') || lower.endsWith('.txt') || lower.endsWith('.log') || lower.endsWith('.ndjson') || isCorridaMd;
       if (!validExt) return false;
 
       // Descartar archivos raíz que corresponden a documentación principal o manifests
@@ -836,6 +845,7 @@ export async function extractRepoContents(
     archivos_faltantes,
     corridas,
     archivos_codigo,
+    todos_los_archivos_repo: treeBlobs.length > 0 ? treeBlobs : undefined,
     historia_git,
     metadatos_extraccion: {
       total_archivos: Object.keys(archivos_obligatorios).length + corridas.length + archivos_codigo.length,

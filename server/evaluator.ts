@@ -54,6 +54,13 @@ export function buildUserPrompt(data: ExtractedRepoData): string {
   const allExistingFiles = new Set<string>();
   const allExistingBasenames = new Set<string>();
 
+  if (data.todos_los_archivos_repo && Array.isArray(data.todos_los_archivos_repo)) {
+    for (const p of data.todos_los_archivos_repo) {
+      allExistingFiles.add(p.toLowerCase());
+      allExistingBasenames.add(p.split('/').pop()!.toLowerCase());
+    }
+  }
+
   for (const k of Object.keys(data.archivos_obligatorios)) {
     if (data.archivos_obligatorios[k] !== null) {
       allExistingFiles.add(k.toLowerCase());
