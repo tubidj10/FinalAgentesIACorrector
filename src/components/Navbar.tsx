@@ -27,11 +27,25 @@ interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   hasGeminiKey: boolean;
+  onOpenTeamCredits?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGeminiKey }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  activeTab, 
+  setActiveTab, 
+  hasGeminiKey,
+  onOpenTeamCredits 
+}) => {
   const { user, appUser, isAdmin, isSuperAdmin, logout, pendingRequests } = useAuth();
   const [showTeamModal, setShowTeamModal] = useState(false);
+
+  const handleOpenCredits = () => {
+    if (onOpenTeamCredits) {
+      onOpenTeamCredits();
+    } else {
+      setShowTeamModal(true);
+    }
+  };
 
   const tabs = [
     { id: 'evaluador' as ActiveTab, label: 'Evaluador en Vivo', icon: Play },
@@ -94,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
             {/* Team Credits Button */}
             <button
               id="btn-team-credits"
-              onClick={() => setShowTeamModal(true)}
+              onClick={handleOpenCredits}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition"
               title="Ver integrantes del equipo de desarrollo (MBA UCEMA)"
             >
@@ -206,7 +220,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, hasGemi
         </div>
       </div>
 
-      <TeamCreditsModal isOpen={showTeamModal} onClose={() => setShowTeamModal(false)} />
+      {!onOpenTeamCredits && (
+        <TeamCreditsModal isOpen={showTeamModal} onClose={() => setShowTeamModal(false)} />
+      )}
     </header>
   );
 };

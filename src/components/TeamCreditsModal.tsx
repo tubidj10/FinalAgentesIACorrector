@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   Users, 
@@ -18,6 +19,25 @@ interface TeamCreditsModalProps {
 }
 
 export const TeamCreditsModal: React.FC<TeamCreditsModalProps> = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const teamMembers = [
@@ -59,11 +79,21 @@ export const TeamCreditsModal: React.FC<TeamCreditsModalProps> = ({ isOpen, onCl
     }
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+  return createPortal(
+    <div 
+      id="team-credits-modal-overlay"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-sm p-4 sm:p-6 flex justify-center animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        id="team-credits-modal-card"
+        className="relative bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh] m-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="shrink-0 bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
             <div className="h-10 px-2.5 py-1 rounded-xl bg-white/95 border border-slate-700 flex items-center justify-center shadow-md shadow-black/30 shrink-0">
               <img 
@@ -91,13 +121,14 @@ export const TeamCreditsModal: React.FC<TeamCreditsModalProps> = ({ isOpen, onCl
           <button
             onClick={onClose}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            aria-label="Cerrar modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-4">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
           <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
               <span className="text-slate-400 block font-medium">Cátedra & Dirección Académica:</span>
@@ -151,7 +182,7 @@ export const TeamCreditsModal: React.FC<TeamCreditsModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-950 px-6 py-4 border-t border-slate-800 flex items-center justify-between">
+        <div className="shrink-0 bg-slate-950 px-5 sm:px-6 py-3.5 sm:py-4 border-t border-slate-800 flex items-center justify-between">
           <span className="text-[11px] text-slate-500">
             Universidad del CEMA · Buenos Aires, Argentina
           </span>
@@ -163,6 +194,7 @@ export const TeamCreditsModal: React.FC<TeamCreditsModalProps> = ({ isOpen, onCl
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

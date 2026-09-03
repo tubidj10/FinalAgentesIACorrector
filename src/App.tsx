@@ -62,6 +62,7 @@ function AppContent() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         hasGeminiKey={health?.has_gemini_key ?? false}
+        onOpenTeamCredits={() => setShowTeamModal(true)}
       />
 
       {/* Admin Notification Banner for Pending Requests */}
