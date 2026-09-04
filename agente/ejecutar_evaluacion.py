@@ -110,6 +110,25 @@ DIRECTORIOS_EXCLUIDOS = {
 }
 MAX_ARCHIVOS_CODIGO = 12
 MAX_CHARS_CODIGO_TOTAL = 40_000
+MAX_ARCHIVOS_CORRIDAS = 15
+MAX_CHARS_CORRIDA_INDIVIDUAL = 25_000
+MAX_CHARS_CORRIDAS_TOTAL = 100_000
+
+def truncar_log_defensivo(contenido: str, max_chars: int = MAX_CHARS_CORRIDA_INDIVIDUAL) -> str:
+    """Preserva la cabeza (request, prompts) y la cola (response, usage, tokens) de un log extenso."""
+    if len(contenido) <= max_chars:
+        return contenido
+    mitad_cabeza = int(max_chars * 0.6)  # 15.000 chars iniciales
+    mitad_cola = max_chars - mitad_cabeza  # 10.000 chars finales
+    cabeza = contenido[:mitad_cabeza]
+    cola = contenido[-mitad_cola:]
+    chars_omitidos = len(contenido) - (mitad_cabeza + mitad_cola)
+    return (
+        f"{cabeza}\n\n"
+        f"// --- [TRUNCADO DEFENSIVO DE LOG: {chars_omitidos} caracteres omitidos por límite de tokens. "
+        f"Se preserva el encabezado con request y la sección final con usage/tokens/status] ---\n\n"
+        f"{cola}"
+    )
 
 MODELO = os.environ.get("MODELO_EVALUADOR", "claude-sonnet-5")
 AQUI = Path(__file__).resolve().parent
@@ -205,11 +224,21 @@ def construir_user_prompt(repo_url: str, owner: str, repo: str) -> tuple[str, di
     else:
         listado = "\n".join(nombres_corridas)
         partes = []
-        for nombre in nombres_corridas:
+        chars_corridas = 0
+        for nombre in nombres_corridas[:MAX_ARCHIVOS_CORRIDAS]:
             contenido = leer_archivo_repo(owner, repo, f"corridas/{nombre}")
-            partes.append(
-                f'<archivo ruta="corridas/{nombre}">\n{contenido}\n</archivo>'
-            )
+            if contenido:
+                safe_contenido = truncar_log_defensivo(contenido, MAX_CHARS_CORRIDA_INDIVIDUAL)
+                chars_corridas += len(safe_contenido)
+                partes.append(
+                    f'<archivo ruta="corridas/{nombre}">\n{safe_contenido}\n</archivo>'
+                )
+                if chars_corridas >= MAX_CHARS_CORRIDAS_TOTAL:
+                    partes.append(
+                        f'<!-- Presupuesto global de logs alcanzado ({chars_corridas} chars). '
+                        f'Se omitieron {len(nombres_corridas) - len(partes)} archivos de corrida adicionales para proteger la ventana de tokens. -->'
+                    )
+                    break
         bloque_corridas = "\n".join(partes)
 
     # Fase 5, no puntuada: código de implementación, mejor esfuerzo.

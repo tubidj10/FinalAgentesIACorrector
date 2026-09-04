@@ -71,6 +71,18 @@ const MANIFEST_NAMES = new Set([
   "herramientas.md", "tools.md", "evaluacion.md"
 ]);
 
+export function truncateLogDefensive(content: string, maxChars = 25000): string {
+  if (content.length <= maxChars) return content;
+  const headSize = Math.floor(maxChars * 0.6); // 15,000 caracteres de request / prompt
+  const tailSize = maxChars - headSize; // 10,000 caracteres de usage / response
+  const omitted = content.length - (headSize + tailSize);
+  return (
+    content.slice(0, headSize) +
+    `\n\n// --- [TRUNCADO DEFENSIVO POR LÍMITE DE TOKENS: ${omitted} caracteres omitidos para proteger la ventana de contexto. Se preserva encabezado con request y cola final con usage/tokens/metadatos] ---\n\n` +
+    content.slice(-tailSize)
+  );
+}
+
 // In-memory cache for extracted repo data (TTL: 5 minutes)
 const repoExtractionCache = new Map<string, { data: ExtractedRepoData; expiresAt: number }>();
 const detectedBranchCache = new Map<string, string>();
@@ -634,9 +646,13 @@ export async function extractRepoContents(
       }
     }
 
+    let charsCorridas = 0;
     for (const c of fetchedCorridas) {
       if (c.contenido !== null) {
-        corridas.push({ nombre: c.nombre, contenido: c.contenido });
+        const safeContent = truncateLogDefensive(c.contenido, 25000);
+        charsCorridas += safeContent.length;
+        corridas.push({ nombre: c.nombre, contenido: safeContent });
+        if (charsCorridas >= 120000) break; // Presupuesto máximo total de corridas
       }
     }
     if (corridas.length === 0) {
@@ -747,9 +763,13 @@ export async function extractRepoContents(
           return { nombre: c.name, contenido: content };
         })
       );
+      let charsCorridasFallback = 0;
       for (const c of fetchedFallbackCorridas) {
         if (c.contenido !== null) {
-          corridas.push({ nombre: c.nombre, contenido: c.contenido });
+          const safeContent = truncateLogDefensive(c.contenido, 25000);
+          charsCorridasFallback += safeContent.length;
+          corridas.push({ nombre: c.nombre, contenido: safeContent });
+          if (charsCorridasFallback >= 120000) break;
         }
       }
       if (corridas.length === 0) {

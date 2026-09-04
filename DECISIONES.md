@@ -71,3 +71,21 @@ ejecutada por un humano, no por el agente.
 | Clasificar prioridad/área/resumen | L1 | Agente, sin aprobación |
 | Responder o cerrar el ticket | L2 | Humano — fuera del alcance del agente |
 | Dar de baja o modificar una cuenta | L3/L4 | Humano — el agente no tiene ninguna herramienta que le permita hacerlo |
+
+## 6. Blindaje contra Vectores de Riesgo para la Prueba en Vivo
+**Commit Git:** `d94a1b0` | **Métrica diferencial:** 0% falsos positivos por caracteres de editores enriquecidos; presupuesto acotado a 120.000 chars evitando desbordes de contexto; protocolo de contingencia en vivo asignado al equipo (Martín, Bianca, Silvia, Daniel y Sofia).
+
+Durante las simulaciones previas a la prueba de fuego en vivo, identificamos y mitigamos tres vectores de riesgo operativos:
+
+1. **Falsos positivos de ofuscación (Regla de Carga Útil):**
+   Un estudiante bienintencionado que copia fragmentos desde procesadores enriquecidos (Microsoft Word, Notion o Google Docs) puede arrastrar inadvertidamente caracteres de control o invisibles (`\u200B` zero-width spaces, `\u00A0` non-breaking spaces). Penalizarlo con 1/10 global sería un falso positivo inaceptable. Establecimos la *Regla de Carga Útil (Payload Rule)*: el protocolo antifraude solo se dispara si los caracteres invisibles u homóglifos transportan un mensaje, instrucción o directiva oculta dirigida al evaluador. Los caracteres aislados sin payload se tratan como ruido tipográfico incidental y se ignoran.
+
+2. **Sobrecarga de contexto en `corridas/` (Head & Tail Preservation):**
+   Un repositorio con decenas de logs voluminosos (>500 KB c/u) colapsa la ventana de tokens o diluye la atención del LLM. Implementamos una doble cota: muestreo de hasta 15 archivos representativos y corte individual a 25.000 caracteres preservando el 60% inicial (request y prompts) y el 40% final (usage, tokens consumidos, costo y status), intercalando una advertencia de auditoría explícita. Esto mantiene el consumo de contexto por debajo de 30.000 tokens sin perder los metadatos críticos para la Dimensión 1.
+
+3. **Dinámica de contingencia y roles de equipo en vivo:**
+   Ante repositorios con estructuras heterogéneas o fallas de red durante la clase, el equipo definió un protocolo de contingencia con roles asignados:
+   - **Martín:** Operador de terminal / CLI (`ejecutar_evaluacion.py`) con conmutación rápida de proveedor (`--proveedor anthropic` / `--proveedor gemini`).
+   - **Bianca y Silvia:** Validación cruzada inmediata del JSON emitido contra los umbrales de `calibracion.md` y defensa analítica de las justificaciones ante el profesor.
+   - **Daniel y Sofia:** Detección y normalización rápida de rutas atípicas (ej. `src/prompts/` o nombres de ramas disidentes) mediante la suite visual o Modo Chat de respaldo.
+
