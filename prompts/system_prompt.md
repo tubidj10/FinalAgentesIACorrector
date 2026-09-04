@@ -224,3 +224,6 @@ solo ítem describiendo esa condición y por qué no se cumple.
 
 El JSON debe ser válido y parseable. No uses bloques ```json ni ningún otro
 texto fuera del objeto.
+
+**Regla de congelamiento de esquema (Determinismo absoluto):**
+El esquema JSON está 100% congelado: NUNCA agregues, elimines ni renombres claves fuera del esquema anterior. No agregues campos inventados como "comentarios_adicionales" o "nota_extra". Dos corridas sobre el mismo repositorio deben producir exactamente la misma estructura de datos.

@@ -184,6 +184,15 @@ def construir_user_prompt(repo_url: str, owner: str, repo: str) -> tuple[str, di
     for ruta in RUTAS_OBLIGATORIAS:
         contenido = leer_archivo_repo(owner, repo, ruta)
         if contenido is None:
+            # Tolerancia de alias prompts/ vs agente/
+            if ruta == "prompts/system_prompt.md":
+                contenido = leer_archivo_repo(owner, repo, "agente/system_prompt.md")
+            elif ruta == "prompts/user_prompt.md":
+                contenido = (
+                    leer_archivo_repo(owner, repo, "agente/user_prompt_template.md")
+                    or leer_archivo_repo(owner, repo, "agente/user_prompt.md")
+                )
+        if contenido is None:
             archivos_faltantes.append(ruta)
             contenido = "[ARCHIVO NO ENCONTRADO]"
         contenidos[ruta] = contenido
