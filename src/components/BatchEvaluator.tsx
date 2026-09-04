@@ -17,7 +17,10 @@ import {
   ChevronDown,
   ArrowUpDown,
   Github,
-  Zap
+  Zap,
+  User,
+  GraduationCap,
+  Search
 } from 'lucide-react';
 import { DimensionEvaluation } from '../types';
 import { StudentFeedbackDossier } from './StudentFeedbackDossier';
@@ -28,6 +31,8 @@ interface BatchItem {
   id: string;
   url: string;
   label: string;
+  owner?: string;
+  repoName?: string;
   status: 'pending' | 'evaluating' | 'completed' | 'error';
   nota_final?: number;
   dimensiones?: DimensionEvaluation[];
@@ -36,7 +41,36 @@ interface BatchItem {
   rawResult?: any;
 }
 
-type SortField = 'original' | 'label' | 'status' | 'nota_final' | 'd1' | 'd2' | 'd3' | 'd4' | 'd5';
+function extractOwnerAndRepo(input: string): { owner: string; repoName: string; label: string } {
+  const clean = input.trim();
+  if (clean === 'excelente') {
+    return { owner: 'Cátedra UCEMA', repoName: 'excelente', label: 'Caso Excelente (Referencia)' };
+  }
+  if (clean === 'flojo') {
+    return { owner: 'Cátedra UCEMA', repoName: 'flojo', label: 'Caso Flojo (Referencia)' };
+  }
+  if (clean === 'tramposo') {
+    return { owner: 'Cátedra UCEMA', repoName: 'tramposo', label: 'Caso Tramposo (Referencia)' };
+  }
+
+  // Matches https://github.com/owner/repo or git@github.com:owner/repo
+  const match = clean.match(/github\.com[/:]([^/]+)\/([^/#?]+)/i);
+  if (match) {
+    const owner = match[1];
+    const repoName = match[2].replace(/\.git$/, '');
+    return { owner, repoName, label: `${owner}/${repoName}` };
+  }
+
+  // Matches plain "owner/repo"
+  const parts = clean.replace(/^\/+|\/+$/g, '').split('/');
+  if (parts.length === 2 && !parts[0].includes(' ') && !parts[1].includes(' ')) {
+    return { owner: parts[0], repoName: parts[1].replace(/\.git$/, ''), label: clean };
+  }
+
+  return { owner: '—', repoName: clean, label: clean };
+}
+
+type SortField = 'original' | 'owner' | 'label' | 'status' | 'nota_final' | 'd1' | 'd2' | 'd3' | 'd4' | 'd5';
 type SortDirection = 'asc' | 'desc';
 
 export const BatchEvaluator: React.FC = () => {
@@ -54,6 +88,7 @@ https://github.com/tubidj10/Facultad`
   const [isProcessing, setIsProcessing] = useState(false);
   const [concurrency, setConcurrency] = useState<number>(4);
   const [selectedItem, setSelectedItem] = useState<BatchItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('nota_final');
@@ -86,19 +121,14 @@ https://github.com/tubidj10/Facultad`
     }
 
     const batchList: BatchItem[] = lines.map((url, idx) => {
-      let label = url;
-      if (url === 'excelente') label = 'Caso Excelente (Referencia)';
-      else if (url === 'flojo') label = 'Caso Flojo (Referencia)';
-      else if (url === 'tramposo') label = 'Caso Tramposo (Referencia)';
-      else {
-        const clean = url.replace('https://github.com/', '').replace('.git', '');
-        label = clean;
-      }
+      const parsed = extractOwnerAndRepo(url);
 
       return {
         id: `repo-${idx}-${Date.now()}`,
         url,
-        label,
+        label: parsed.label,
+        owner: parsed.owner,
+        repoName: parsed.repoName,
         status: 'pending'
       };
     });
@@ -144,11 +174,16 @@ https://github.com/tubidj10/Facultad`
           if (sum > 0) notaCalculada = Math.round(sum * 10) / 10;
         }
 
+        const realOwner = json.repo?.owner || targetItem.owner || '—';
+        const realRepo = json.repo?.repo || targetItem.repoName || targetItem.label;
+
         setItems(prev => prev.map((item, idx) => {
           if (idx === index) {
             return {
               ...item,
               status: 'completed',
+              owner: realOwner,
+              repoName: realRepo,
               nota_final: notaCalculada,
               dimensiones: dims,
               diagnostico_git: json.repo?.historia_git?.diagnostico_proceso,
@@ -161,8 +196,8 @@ https://github.com/tubidj10/Facultad`
         // Persist to evaluation history
         saveEvaluationRecord({
           repoUrl: targetItem.url,
-          repoName: json.repo?.repo || targetItem.label || targetItem.url.split('/').pop() || 'repo',
-          owner: json.repo?.owner,
+          repoName: realRepo || targetItem.label || targetItem.url.split('/').pop() || 'repo',
+          owner: realOwner !== '—' ? realOwner : undefined,
           nota_final: notaCalculada,
           provider: result.log?.proveedor || 'auto',
           modelo: result.log?.modelo || 'gemini-flash-latest',
@@ -214,17 +249,19 @@ https://github.com/tubidj10/Facultad`
 
   const handleExportCSV = () => {
     if (items.length === 0) return;
-    let csv = 'Repositorio,Estado,Nota Final,D1 (30%),D2 (25%),D3 (20%),D4 (15%),D5 (10%),Diagnostico\n';
+    let csv = 'Owner / Alumno,Repositorio,URL,Estado,Nota Final,D1 (30%),D2 (25%),D3 (20%),D4 (15%),D5 (10%),Diagnostico\n';
     items.forEach(it => {
+      const owner = it.owner || '';
+      const repo = it.repoName || it.label;
       if (it.status === 'completed' && it.dimensiones) {
         const d1 = it.dimensiones[0]?.puntaje_ponderado ?? '';
         const d2 = it.dimensiones[1]?.puntaje_ponderado ?? '';
         const d3 = it.dimensiones[2]?.puntaje_ponderado ?? '';
         const d4 = it.dimensiones[3]?.puntaje_ponderado ?? '';
         const d5 = it.dimensiones[4]?.puntaje_ponderado ?? '';
-        csv += `"${it.label}","${it.status}",${it.nota_final?.toFixed(1)},${d1},${d2},${d3},${d4},${d5},"${it.diagnostico_git || ''}"\n`;
+        csv += `"${owner}","${repo}","${it.url}","${it.status}",${it.nota_final?.toFixed(1)},${d1},${d2},${d3},${d4},${d5},"${it.diagnostico_git || ''}"\n`;
       } else {
-        csv += `"${it.label}","${it.status}","","","","","","","${it.errorMsg || ''}"\n`;
+        csv += `"${owner}","${repo}","${it.url}","${it.status}","","","","","","","${it.errorMsg || ''}"\n`;
       }
     });
 
@@ -259,17 +296,33 @@ https://github.com/tubidj10/Facultad`
     }
   };
 
-  const sortedItems = useMemo(() => {
-    if (sortField === 'original') return items;
+  const filteredAndSortedItems = useMemo(() => {
+    let result = items;
+    if (searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      result = items.filter(it => 
+        (it.owner && it.owner.toLowerCase().includes(q)) ||
+        (it.label && it.label.toLowerCase().includes(q)) ||
+        (it.url && it.url.toLowerCase().includes(q)) ||
+        (it.repoName && it.repoName.toLowerCase().includes(q))
+      );
+    }
 
-    return [...items].sort((a, b) => {
+    if (sortField === 'original') return result;
+
+    return [...result].sort((a, b) => {
       let valA: any = 0;
       let valB: any = 0;
 
       switch (sortField) {
+        case 'owner':
+          valA = (a.owner || '').toLowerCase();
+          valB = (b.owner || '').toLowerCase();
+          return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
         case 'label':
-          valA = a.label.toLowerCase();
-          valB = b.label.toLowerCase();
+          valA = (a.repoName || a.label).toLowerCase();
+          valB = (b.repoName || b.label).toLowerCase();
           return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
 
         case 'status':
@@ -317,7 +370,7 @@ https://github.com/tubidj10/Facultad`
         return valA < valB ? 1 : valA > valB ? -1 : 0;
       }
     });
-  }, [items, sortField, sortDirection]);
+  }, [items, sortField, sortDirection, searchTerm]);
 
   const renderSortIndicator = (field: SortField) => {
     if (sortField !== field) {
@@ -473,14 +526,32 @@ https://github.com/tubidj10/Facultad`
       {/* Evaluation Table Results */}
       {items.length > 0 && (
         <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="p-4 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+          <div className="p-4 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-2">
               <CheckSquare className="w-4 h-4 text-indigo-400" />
-              <span>Resultados y Ranking del Lote</span>
-            </h3>
-            <span className="text-[11px] text-slate-400">
-              Hacé clic en cualquier fila para ver el desglose completo
-            </span>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Resultados y Ranking del Lote
+              </h3>
+              <span className="text-[11px] text-slate-400 font-mono">
+                ({filteredAndSortedItems.length} de {items.length})
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar por owner o repo..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <span className="text-[11px] text-slate-400 hidden lg:inline whitespace-nowrap">
+                Clic en fila para ver dossier
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -493,6 +564,13 @@ https://github.com/tubidj10/Facultad`
                   >
                     <span>#</span>
                     {sortField === 'original' && <span className="text-indigo-400 font-bold ml-1">•</span>}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('owner')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition group"
+                  >
+                    <span>Owner / Alumno</span>
+                    {renderSortIndicator('owner')}
                   </th>
                   <th 
                     onClick={() => handleSort('label')}
@@ -559,7 +637,7 @@ https://github.com/tubidj10/Facultad`
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-sans">
-                {sortedItems.map((item, idx) => {
+                {filteredAndSortedItems.map((item, idx) => {
                   const dims = item.dimensiones || [];
                   const isSelected = selectedItem?.id === item.id;
 
@@ -575,8 +653,53 @@ https://github.com/tubidj10/Facultad`
                     >
                       <td className="py-3.5 px-4 font-mono text-slate-500">{idx + 1}</td>
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-200">{item.label}</div>
-                        <div className="text-[10px] font-mono text-slate-500 truncate max-w-xs">{item.url}</div>
+                        {item.owner === 'Cátedra UCEMA' ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                              <GraduationCap className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-semibold text-indigo-300 text-xs">Cátedra UCEMA</span>
+                          </div>
+                        ) : item.owner && item.owner !== '—' ? (
+                          <a 
+                            href={`https://github.com/${item.owner}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center space-x-2 group/owner hover:text-indigo-400 transition"
+                            title={`Ver perfil de GitHub @${item.owner}`}
+                          >
+                            <img 
+                              src={`https://github.com/${item.owner}.png?size=48`} 
+                              alt={item.owner} 
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                              className="w-6 h-6 rounded-full border border-slate-700 object-cover shrink-0"
+                            />
+                            <span className="font-bold text-slate-200 group-hover/owner:text-indigo-400 group-hover/owner:underline font-mono text-xs">
+                              @{item.owner}
+                            </span>
+                            <ExternalLink className="w-3 h-3 text-slate-500 opacity-0 group-hover/owner:opacity-100 transition shrink-0" />
+                          </a>
+                        ) : (
+                          <div className="flex items-center space-x-1.5 text-slate-500">
+                            <User className="w-3.5 h-3.5 opacity-50" />
+                            <span className="font-mono text-xs">—</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-200">{item.repoName || item.label}</div>
+                        <a 
+                          href={item.url.startsWith('http') ? item.url : `https://github.com/${item.url}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[10px] font-mono text-slate-500 hover:text-indigo-400 truncate max-w-xs block"
+                        >
+                          {item.url}
+                        </a>
                       </td>
                       <td className="py-3.5 px-4">
                         {item.status === 'pending' && (
@@ -648,13 +771,20 @@ https://github.com/tubidj10/Facultad`
       {/* Selected Item Modal / Inspector */}
       {selectedItem && selectedItem.rawResult && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Devolución Detallada para: <span className="text-indigo-400 font-mono">{selectedItem.label}</span>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex flex-wrap items-center gap-2">
+              <span>Devolución Detallada:</span>
+              <span className="text-indigo-400 font-mono">{selectedItem.repoName || selectedItem.label}</span>
+              {selectedItem.owner && (
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono text-[11px] flex items-center space-x-1">
+                  <User className="w-3 h-3 text-indigo-400" />
+                  <span>Owner: <strong>@{selectedItem.owner}</strong></span>
+                </span>
+              )}
             </h3>
             <button
               onClick={() => setSelectedItem(null)}
-              className="text-xs text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700"
+              className="text-xs text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 shrink-0"
             >
               Cerrar Dossier
             </button>
@@ -670,7 +800,11 @@ https://github.com/tubidj10/Facultad`
               auditoria_forense: selectedItem.rawResult.evaluacion?.auditoria_forense || selectedItem.rawResult.result?.evaluacion?.auditoria_forense || selectedItem.rawResult.evaluacion?.revision_de_codigo?.auditoria_forense,
               historia_git: selectedItem.rawResult.repo?.historia_git,
               log: selectedItem.rawResult.log || selectedItem.rawResult.result?.log,
-              repo: selectedItem.rawResult.repo
+              repo: selectedItem.rawResult.repo || {
+                owner: selectedItem.owner || '—',
+                repo: selectedItem.repoName || selectedItem.label,
+                url: selectedItem.url
+              }
             }}
           />
         </div>

@@ -18,6 +18,16 @@ estructurado, idéntico en cada corrida.
 - Daniel Osorio — *Análisis Económico & Presupuesto de Tokens*
 - Sofia Rodriguez — *Diseño Pedagógico & Dossier de Feedback*
 
+### Reparto de trabajo del grupo y orden lógico (Consigna P1.2)
+
+| Responsable | Perfil / Rol | Pieza / Módulo Principal | Pre-requisito / Orden Lógico |
+|---|---|---|---|
+| **Martín Pérez** | Arquitectura & Software Engine | Engine determinista de evaluación, integración de APIs (Gemini/Anthropic) y runner de ejecución | Requiere la rúbrica ejecutable terminada; habilita las corridas de calibración |
+| **Sofia Rodriguez** | Diseño Curricular & Pedagogía | **Pieza 1: Rúbrica ejecutable v0 a v5** (`rubrica.md`) y Dossier de Feedback al alumno | Primer paso: debe estar lista antes del system prompt del agente y de los casos de prueba |
+| **Silvia Alvarez** | Gobernanza de IA & Seguridad | **Pieza 2: Agente corrector** (`agente/system_prompt.md`), taxonomía de autonomía L0–L4 y defensas antifraude | Depende de la Rúbrica (Pieza 1); debe estar listo antes de correr la calibración |
+| **Bianca Orlandini** | QA & Auditoría Forense | **Pieza 3: Casos de prueba** (`casos/excelente`, `casos/flojo`, `casos/tramposo`) | Depende de definir la estructura esperada; corre en paralelo con el system prompt |
+| **Daniel Osorio** | Finanzas & Token Economics | **Pieza 4: Calibración** (`calibracion.md`), matriz de tokens y análisis de sensibilidad económica | Requiere que el Agente Corrector y los Casos de Prueba estén listos para ejecutar la comparación humano vs agente |
+
 ## Las cuatro piezas
 
 | Pieza | Dónde |
